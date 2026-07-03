@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greedy-Algorithmen – Huffman &amp; Gale-Shapley</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #f0faf2; margin: 0; padding: 20px; }
+.back-link { display: inline-block; margin-bottom: 16px; color: #27ae60; text-decoration: none; font-size: 0.9em; }
+.back-link:hover { text-decoration: underline; }
+h1 { color: #2c3e50; margin: 0 0 4px; font-size: 1.7em; }
+.subtitle { color: #888; font-size: 0.9em; margin-bottom: 20px; }
+.tabs { display: flex; gap: 2px; margin-bottom: 20px; }
+.tab { padding: 9px 22px; background: #ddd; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.9em; color: #555; border: none; }
+.tab.active { background: white; color: #1a5c38; font-weight: 700; box-shadow: 0 -2px 8px rgba(0,0,0,0.08); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.layout2 { display: grid; grid-template-columns: 300px 1fr; gap: 18px; max-width: 1100px; }
+.panel { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 18px rgba(0,0,0,0.08); }
+label { display: block; font-size: 0.83em; font-weight: 600; color: #555; margin: 10px 0 4px; }
+input[type=text], input[type=number], textarea { width: 100%; padding: 7px 10px; border: 1.5px solid #ddd; border-radius: 6px; font-size: 0.9em; outline: none; }
+input:focus, textarea:focus { border-color: #27ae60; }
+.btn { display: block; width: 100%; padding: 9px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; margin-top: 10px; }
+.btn:hover { background: #1e8449; }
+.btn.step-btn { background: #2980b9; }
+.btn.step-btn:hover { background: #1a5276; }
+.btn.neutral { background: #7f8c8d; }
+.section-title { font-size: 0.77em; text-transform: uppercase; letter-spacing: 0.07em; color: #bbb; font-weight: 700; margin: 16px 0 8px; border-top: 1px solid #f0f0f0; padding-top: 14px; }
+/* Huffman */
+#huff-svg { width: 100%; border: 1px solid #d0ead8; border-radius: 8px; background: #fefffe; min-height: 300px; }
+.huff-table { width: 100%; border-collapse: collapse; font-size: 0.83em; margin-top: 8px; }
+.huff-table th { background: #eafaf0; padding: 5px 8px; border: 1px solid #cde; font-weight: 700; }
+.huff-table td { padding: 5px 8px; border: 1px solid #def; text-align: center; }
+.huff-table tr.highlight td { background: #fffde7; font-weight: 700; }
+/* Steps */
+.step-log { max-height: 240px; overflow-y: auto; margin-top: 8px; font-size: 0.82em; }
+.step-entry { padding: 5px 9px; border-left: 3px solid #27ae60; background: #f0fbf4; margin-bottom: 5px; border-radius: 0 5px 5px 0; }
+.step-entry.merge { border-left-color: #2980b9; background: #f0f7fd; }
+/* GS */
+.gs-grid { display: grid; gap: 16px; }
+.gs-pair-list { font-size: 0.88em; }
+.gs-pair { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; background: #f0f8f0; border-left: 3px solid #27ae60; margin-bottom: 5px; }
+.gs-pair.pending { background: #fef9f0; border-left-color: #f39c12; }
+.gs-pair.rejected { background: #fdf0f0; border-left-color: #e74c3c; text-decoration: line-through; opacity: 0.6; }
+.pref-table { border-collapse: collapse; font-size: 0.82em; width: 100%; margin-top: 6px; }
+.pref-table th { background: #eafaf0; padding: 5px 8px; border: 1px solid #cde; }
+.pref-table td { padding: 4px 8px; border: 1px solid #def; text-align: center; }
+.pref-table td.used { color: #ccc; text-decoration: line-through; }
+.pref-table td.next { background: #ffe; font-weight: 700; }
+</style>
+</head>
+<body>
+<a class="back-link" href="../index.html">← Zurück zur Übersicht</a>
+<h1>Greedy-Algorithmen</h1>
+<div class="subtitle">Kapitel 3 · Huffman-Kodierung &amp; Stabiles Heiratsproblem</div>
+
+<div style="max-width:1100px;margin:0 auto 16px;background:white;border-radius:12px;padding:16px 22px;box-shadow:0 4px 18px rgba(0,0,0,0.08);font-size:0.88em;line-height:1.7;color:#444">
+    <b>Greedy-Algorithmen</b> treffen bei jedem Schritt die lokal beste Entscheidung – ohne zurückzuschauen.<br>
+    <b>Huffman-Kodierung:</b> Zeichen mit hoher Häufigkeit erhalten kurze Codes, seltene Zeichen längere. Der Baum entsteht, indem die zwei Knoten mit der niedrigsten Häufigkeit wiederholt zusammengeführt werden. Laufzeit: O(N log N).<br>
+    <b>Gale-Shapley (Stabiles Heiraten):</b> Unverheiratete Männer machen der nächsten Frau ihrer Liste einen Antrag. Frauen behalten immer den für sie besten bisherigen Bewerber. Das Ergebnis ist garantiert stabil (kein Paar möchte tauschen) und männer-optimal.
+</div>
+<div class="tabs">
+    <button class="tab active" onclick="switchTab('huffman')">Huffman-Kodierung</button>
+    <button class="tab" onclick="switchTab('gale')">Gale-Shapley</button>
+</div>
+
+<!-- HUFFMAN TAB -->
+<div id="tab-huffman" class="tab-content active">
+<div class="layout2">
+    <div class="panel">
+        <div class="section-title">Zeichen &amp; Häufigkeiten</div>
+        <label>Format: ZEICHEN:HÄUFIGKEIT pro Zeile</label>
+        <textarea id="huff-input" rows="9" style="font-family:monospace">F:1
+M:2
+U:4
+H:5
+A:6
+N:8
+E:9</textarea>
+        <button class="btn" onclick="huffBuild()">Baum aufbauen</button>
+        <button class="btn step-btn" onclick="huffStep()">Einen Schritt</button>
+        <button class="btn neutral" onclick="huffReset()">Zurücksetzen</button>
+
+        <div class="section-title">Kodewörter</div>
+        <table class="huff-table" id="huff-code-table">
+            <tr><th>Zeichen</th><th>Häufigkeit</th><th>Code</th><th>Länge</th></tr>
+        </table>
+        <div id="huff-avg" style="font-size:0.82em;color:#555;margin-top:8px;"></div>
+    </div>
+    <div class="panel">
+        <div class="section-title">Huffman-Baum</div>
+        <svg id="huff-svg" viewBox="0 0 700 320"></svg>
+        <div class="section-title">Schritte</div>
+        <div class="step-log" id="huff-steps"></div>
+    </div>
+</div>
+</div>
+
+<!-- GALE-SHAPLEY TAB -->
+<div id="tab-gale" class="tab-content">
+<div class="layout2">
+    <div class="panel">
+        <div class="section-title">Präferenzlisten</div>
+        <label>Männer (M1, M2, …) — je Zeile: bevorzugte Frauen getrennt durch &gt;</label>
+        <textarea id="gs-men" rows="4" style="font-family:monospace">W1>W2>W3
+W1>W3>W2
+W1>W2>W3</textarea>
+        <label>Frauen (W1, W2, …) — je Zeile: bevorzugte Männer</label>
+        <textarea id="gs-women" rows="4" style="font-family:monospace">M3>M1>M2
+M1>M2>M3
+M1>M2>M3</textarea>
+        <button class="btn" onclick="gsInit()">Initialisieren</button>
+        <button class="btn step-btn" onclick="gsStep()">Einen Schritt</button>
+        <button class="btn" onclick="gsRun()">Vollständig ausführen</button>
+        <button class="btn neutral" onclick="gsReset()">Zurücksetzen</button>
+
+        <div class="section-title">Ergebnis</div>
+        <div id="gs-result" style="font-size:0.88em;line-height:1.8;"></div>
+    </div>
+    <div class="panel">
+        <div class="section-title">Aktuelle Paarungen</div>
+        <div id="gs-pairs-display" class="gs-pair-list"></div>
+        <div class="section-title">Präferenztabellen</div>
+        <div id="gs-pref-display"></div>
+        <div class="section-title">Protokoll</div>
+        <div class="step-log" id="gs-log"></div>
+    </div>
+</div>
+</div>
+
+<script>
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['huffman','gale'][i] === name));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ─── HUFFMAN ────────────────────────────────────────────────────────────────
+let huffQueue = [];
+let huffRoot = null;
+let huffDone = false;
+
+function parseHuffInput() {
+    return document.getElementById('huff-input').value.trim().split('\n').map(line => {
+        const [ch, freq] = line.split(':');
+        return { ch: ch.trim(), freq: parseInt(freq), children: [], label: ch.trim() };
+    }).filter(n => n.ch && !isNaN(n.freq));
+}
+
+function huffReset() {
+    huffQueue = [];
+    huffRoot = null;
+    huffDone = false;
+    document.getElementById('huff-svg').innerHTML = '';
+    document.getElementById('huff-steps').innerHTML = '';
+    document.getElementById('huff-code-table').innerHTML = '<tr><th>Zeichen</th><th>Häufigkeit</th><th>Code</th><th>Länge</th></tr>';
+    document.getElementById('huff-avg').textContent = '';
+}
+
+function huffBuild() {
+    huffReset();
+    huffQueue = parseHuffInput().sort((a, b) => a.freq - b.freq);
+    huffLog(`Startqueue: ${huffQueue.map(n => `${n.label}(${n.freq})`).join(', ')}`, 'step');
+    while (huffQueue.length > 1) huffStepInner();
+    finishHuff();
+}
+
+function huffStep() {
+    if (!huffQueue.length) {
+        huffQueue = parseHuffInput().sort((a, b) => a.freq - b.freq);
+        huffLog(`Startqueue: ${huffQueue.map(n => `${n.label}(${n.freq})`).join(', ')}`, 'step');
+    }
+    if (huffDone || huffQueue.length <= 1) { finishHuff(); return; }
+    huffStepInner();
+    if (huffQueue.length === 1) finishHuff();
+}
+
+function huffStepInner() {
+    huffQueue.sort((a, b) => a.freq - b.freq);
+    const x = huffQueue.shift();
+    const y = huffQueue.shift();
+    const parent = { ch: null, freq: x.freq + y.freq, children: [x, y], label: `(${x.label}+${y.label})` };
+    huffQueue.push(parent);
+    huffLog(`① ${x.label}(${x.freq}) + ${y.label}(${y.freq}) → ${parent.label}(${parent.freq})`, 'merge');
+    huffRoot = parent;
+    renderHuffTree(huffRoot);
+}
+
+function finishHuff() {
+    if (!huffRoot) return;
+    huffDone = true;
+    // Generate codes
+    const codes = {};
+    function traverse(node, code) {
+        if (!node.children.length) { codes[node.ch] = code; return; }
+        traverse(node.children[0], code + '0');
+        traverse(node.children[1], code + '1');
+    }
+    traverse(huffRoot, '');
+
+    // Fill table
+    const origNodes = parseHuffInput();
+    const tbody = document.getElementById('huff-code-table');
+    tbody.innerHTML = '<tr><th>Zeichen</th><th>Häufigkeit</th><th>Code</th><th>Länge</th></tr>';
+    let totalBits = 0, totalFreq = 0;
+    origNodes.forEach(n => {
+        const code = codes[n.ch] || '?';
+        tbody.innerHTML += `<tr><td>${n.ch}</td><td>${n.freq}</td><td style="font-family:monospace">${code}</td><td>${code.length}</td></tr>`;
+        totalBits += n.freq * code.length;
+        totalFreq += n.freq;
+    });
+    const avg = (totalBits / totalFreq).toFixed(3);
+    document.getElementById('huff-avg').textContent = `Ø Codewortlänge: ${totalBits}/${totalFreq} ≈ ${avg} Bit (ohne Huffman: ⌈log₂${origNodes.length}⌉ = ${Math.ceil(Math.log2(origNodes.length))} Bit)`;
+    huffLog(`Fertig! Ø ${avg} Bit/Zeichen`, 'step');
+}
+
+function huffLog(msg, type) {
+    const d = document.getElementById('huff-steps');
+    const e = document.createElement('div');
+    e.className = 'step-entry ' + type;
+    e.textContent = msg;
+    d.prepend(e);
+}
+
+// SVG Huffman tree rendering
+const H_NODE_R = 20;
+function treeW(node) { return node.children.length ? node.children.reduce((s, c) => s + treeW(c), 0) : 1; }
+function renderHuffTree(root) {
+    const svg = document.getElementById('huff-svg');
+    svg.innerHTML = '';
+    const totalW = treeW(root);
+    const svgW = Math.max(700, totalW * 60 + 60);
+    svg.setAttribute('viewBox', `0 0 ${svgW} 320`);
+    drawHuffNode(svg, root, svgW / 2, 30, null, null, 0);
+}
+function drawHuffNode(svg, node, x, y, px, py, depth) {
+    if (px !== null) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', px); line.setAttribute('y1', py + H_NODE_R);
+        line.setAttribute('x2', x); line.setAttribute('y2', y - H_NODE_R);
+        line.setAttribute('stroke', '#a8d5b5'); line.setAttribute('stroke-width', 1.5);
+        svg.appendChild(line);
+        // Edge label
+        if (node.children.length === 0 || true) {
+            const midX = (px + x) / 2;
+            const midY = (py + y) / 2;
+            const edgeLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            edgeLabel.setAttribute('x', midX + 6); edgeLabel.setAttribute('y', midY);
+            edgeLabel.setAttribute('font-size', '10'); edgeLabel.setAttribute('fill', '#27ae60');
+            edgeLabel.setAttribute('text-anchor', 'middle'); edgeLabel.setAttribute('font-family', 'monospace');
+            // Determine 0/1 based on position relative to parent
+            edgeLabel.textContent = x < px ? '0' : '1';
+            svg.appendChild(edgeLabel);
+        }
+    }
+    const isLeaf = node.children.length === 0;
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x); circle.setAttribute('cy', y);
+    circle.setAttribute('r', H_NODE_R);
+    circle.setAttribute('fill', isLeaf ? '#27ae60' : '#ecf8ef');
+    circle.setAttribute('stroke', '#27ae60'); circle.setAttribute('stroke-width', 2);
+    svg.appendChild(circle);
+
+    const text1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text1.setAttribute('x', x); text1.setAttribute('y', y + (isLeaf ? 1 : -3));
+    text1.setAttribute('text-anchor', 'middle'); text1.setAttribute('fill', isLeaf ? 'white' : '#1a5c38');
+    text1.setAttribute('font-size', isLeaf ? '13' : '10'); text1.setAttribute('font-weight', 'bold');
+    text1.setAttribute('font-family', 'Segoe UI, sans-serif');
+    text1.textContent = isLeaf ? node.ch : node.freq;
+    svg.appendChild(text1);
+
+    if (isLeaf) {
+        const text2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text2.setAttribute('x', x); text2.setAttribute('y', y + 13);
+        text2.setAttribute('text-anchor', 'middle'); text2.setAttribute('fill', '#d0ead8');
+        text2.setAttribute('font-size', '9'); text2.setAttribute('font-family', 'Segoe UI, sans-serif');
+        text2.textContent = node.freq;
+        svg.appendChild(text2);
+    } else {
+        const text2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text2.setAttribute('x', x); text2.setAttribute('y', y + 10);
+        text2.setAttribute('text-anchor', 'middle'); text2.setAttribute('fill', '#888');
+        text2.setAttribute('font-size', '9'); text2.setAttribute('font-family', 'Segoe UI, sans-serif');
+        text2.textContent = node.freq;
+        svg.appendChild(text2);
+    }
+
+    if (node.children.length) {
+        const widths = node.children.map(treeW);
+        const total = widths.reduce((a,b)=>a+b,0);
+        let cx = x - (total / 2) * 55 + 27.5;
+        node.children.forEach((c, i) => {
+            const w = widths[i];
+            drawHuffNode(svg, c, cx + (w/2 - 0.5)*55, y + 72, x, y, depth+1);
+            cx += w * 55;
+        });
+    }
+}
+
+// ─── GALE-SHAPLEY ───────────────────────────────────────────────────────────
+let gs = null;
+
+function parsePrefLists(textarea, prefix) {
+    return textarea.trim().split('\n').map((line, i) => ({
+        name: prefix + (i+1),
+        prefs: line.split('>').map(s => s.trim())
+    }));
+}
+
+function gsInit() {
+    const men = parsePrefLists(document.getElementById('gs-men').value, 'M');
+    const women = parsePrefLists(document.getElementById('gs-women').value, 'W');
+    gs = {
+        men, women,
+        mPartner: Object.fromEntries(men.map(m => [m.name, null])),
+        wPartner: Object.fromEntries(women.map(w => [w.name, null])),
+        mNextProposal: Object.fromEntries(men.map(m => [m.name, 0])),
+        done: false,
+        round: 0,
+    };
+    document.getElementById('gs-log').innerHTML = '';
+    document.getElementById('gs-result').textContent = '';
+    gsRenderState();
+    gsLog('Initialisiert. Alle unverheiratet.', 'step');
+}
+
+function gsReset() {
+    gs = null;
+    document.getElementById('gs-log').innerHTML = '';
+    document.getElementById('gs-result').textContent = '';
+    document.getElementById('gs-pairs-display').innerHTML = '';
+    document.getElementById('gs-pref-display').innerHTML = '';
+}
+
+function gsStep() {
+    if (!gs) { gsInit(); return; }
+    if (gs.done) { gsFinish(); return; }
+
+    // Find free man with proposals left
+    const freeMan = gs.men.find(m => !gs.mPartner[m.name] && gs.mNextProposal[m.name] < gs.women.length);
+    if (!freeMan) { gs.done = true; gsFinish(); return; }
+
+    const wName = freeMan.prefs[gs.mNextProposal[freeMan.name]];
+    gs.mNextProposal[freeMan.name]++;
+    gs.round++;
+
+    gsLog(`Runde ${gs.round}: ${freeMan.name} → ${wName}`, 'step');
+
+    const woman = gs.women.find(w => w.name === wName);
+    const currentPartner = gs.wPartner[wName];
+
+    if (!currentPartner) {
+        gs.mPartner[freeMan.name] = wName;
+        gs.wPartner[wName] = freeMan.name;
+        gsLog(`  ${wName} unverheiratet → nimmt ${freeMan.name} an ✓`, 'step');
+    } else {
+        // Compare ranks
+        const wPrefs = woman.prefs;
+        const rankCurrent = wPrefs.indexOf(currentPartner);
+        const rankNew = wPrefs.indexOf(freeMan.name);
+        if (rankNew < rankCurrent) {
+            gsLog(`  ${wName} bevorzugt ${freeMan.name} vor ${currentPartner} → wechselt`, 'step');
+            gs.mPartner[currentPartner] = null;
+            gs.mPartner[freeMan.name] = wName;
+            gs.wPartner[wName] = freeMan.name;
+        } else {
+            gsLog(`  ${wName} behält ${currentPartner}, weist ${freeMan.name} ab`, 'step');
+        }
+    }
+
+    gsRenderState();
+    // Check done
+    const allMenPaired = gs.men.every(m => gs.mPartner[m.name] || gs.mNextProposal[m.name] >= gs.women.length);
+    if (allMenPaired) { gs.done = true; gsFinish(); }
+}
+
+function gsRun() {
+    if (!gs) gsInit();
+    let safety = 0;
+    while (!gs.done && safety < 1000) { gsStep(); safety++; }
+}
+
+function gsFinish() {
+    if (!gs) return;
+    const pairs = gs.men.map(m => `${m.name} ↔ ${gs.mPartner[m.name] || '(kein)'}`).join(',  ');
+    document.getElementById('gs-result').innerHTML = `<b>Stabile Zuordnung:</b><br>${pairs}`;
+    gsLog('Algorithmus beendet — stabile Zuordnung gefunden ✓', 'step');
+}
+
+function gsRenderState() {
+    if (!gs) return;
+    // Pairs
+    const pd = document.getElementById('gs-pairs-display');
+    pd.innerHTML = gs.men.map(m => {
+        const w = gs.mPartner[m.name];
+        return `<div class="gs-pair ${w ? '' : 'pending'}">${m.name} ↔ ${w || '(unverheiratet)'}</div>`;
+    }).join('');
+
+    // Pref tables
+    const pref = document.getElementById('gs-pref-display');
+    let html = '<b style="font-size:0.82em">Männer</b>';
+    html += '<table class="pref-table"><tr><th>Mann</th>' + gs.women.map(w => `<th>${w.name}</th>`).join('') + '</tr>';
+    gs.men.forEach(m => {
+        html += `<tr><td>${m.name}</td>`;
+        const nextIdx = gs.mNextProposal[m.name];
+        m.prefs.forEach((w, i) => {
+            const cls = i < nextIdx ? 'used' : (i === nextIdx ? 'next' : '');
+            html += `<td class="${cls}">${w}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</table>';
+    pref.innerHTML = html;
+}
+
+function gsLog(msg, type) {
+    const d = document.getElementById('gs-log');
+    const e = document.createElement('div');
+    e.className = 'step-entry ' + type;
+    e.textContent = msg;
+    d.prepend(e);
+}
+</script>
+</body>
+</html>

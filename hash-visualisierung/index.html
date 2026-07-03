@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hashfunktionen &amp; Streuwerttabellen</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #f0edf6; margin: 0; padding: 20px; min-height: 100vh; }
+.back-link { display: inline-block; margin-bottom: 18px; color: #7a5fb5; text-decoration: none; font-size: 0.9em; }
+.back-link:hover { text-decoration: underline; }
+h1 { color: #2c3e50; margin: 0 0 4px; font-size: 1.7em; }
+.subtitle { color: #888; font-size: 0.9em; margin-bottom: 24px; }
+.layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; max-width: 1100px; margin: 0 auto; }
+.panel { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 18px rgba(0,0,0,0.1); }
+label { display: block; font-size: 0.85em; font-weight: 600; color: #555; margin-bottom: 4px; margin-top: 12px; }
+input[type=number], input[type=text], select {
+    width: 100%; padding: 8px 10px; border: 1.5px solid #ddd; border-radius: 6px;
+    font-size: 0.95em; outline: none; transition: border-color 0.2s;
+}
+input:focus, select:focus { border-color: #9b59b6; }
+.btn { display: inline-block; margin-top: 0; padding: 7px 14px; background: #9b59b6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; transition: background 0.2s; white-space: nowrap; }
+.btn:hover { background: #7d3c98; }
+.btn.red { background: #e74c3c; }
+.btn.red:hover { background: #c0392b; }
+.btn.blue { background: #2980b9; }
+.btn.blue:hover { background: #1a5276; }
+.btn.green { background: #27ae60; }
+.btn.green:hover { background: #1e8449; }
+.btn.secondary { background: #7f8c8d; }
+.btn.secondary:hover { background: #5d6d7e; }
+.op-row { display: flex; gap: 7px; align-items: center; margin-top: 8px; }
+.op-row input { flex: 1; margin-top: 0; }
+.formula-box { background: #f6f0fd; border: 1px solid #d5b8f0; border-radius: 6px; padding: 10px 12px; font-family: monospace; font-size: 0.88em; margin-top: 10px; color: #5a2d82; white-space: pre-line; }
+.section-title { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; font-weight: 700; margin: 18px 0 8px; }
+/* Table */
+.hash-table-wrap { overflow-x: auto; }
+table.htable { border-collapse: collapse; width: 100%; font-size: 0.88em; }
+table.htable th { background: #eef0f3; padding: 6px 10px; text-align: center; border: 1px solid #ddd; color: #555; font-weight: 700; }
+table.htable td { padding: 6px 10px; border: 1px solid #e3e6ea; text-align: center; min-width: 36px; }
+table.htable td.slot-idx { background: #f5f5f5; font-weight: 700; color: #888; }
+table.htable td.occupied { background: #d8f0e8; font-weight: 600; color: #1a5c38; }
+table.htable td.new-item { background: #fff3b0; font-weight: 700; color: #7a5500; animation: flash 0.5s ease; }
+table.htable td.del-item { background: #fde8e8; font-weight: 700; color: #c0392b; animation: flash 0.5s ease; }
+table.htable td.found-item { background: #dbeafe; font-weight: 700; color: #1a4878; animation: flash 0.5s ease; }
+table.htable td.tombstone { background: #fde8e8; color: #c0392b; font-style: italic; }
+table.htable td.chain { background: #f5f0fe; color: #6c3483; }
+@keyframes flash { 0% { transform: scale(1.15); } 100% { transform: scale(1); } }
+/* Steps */
+.steps { margin-top: 14px; max-height: 300px; overflow-y: auto; }
+.step { padding: 7px 10px; border-radius: 5px; margin-bottom: 5px; font-size: 0.84em; line-height: 1.5; border-left: 3px solid #ccc; }
+.step.probe   { border-left-color: #f39c12; background: #fffbf0; }
+.step.insert  { border-left-color: #27ae60; background: #f0fbf4; }
+.step.delete  { border-left-color: #e74c3c; background: #fdf0f0; }
+.step.search  { border-left-color: #2980b9; background: #f0f7fd; }
+.step.collision { border-left-color: #e74c3c; background: #fdf0f0; }
+.step.info    { border-left-color: #3498db; background: #f0f7fd; }
+.step.warn    { border-left-color: #e67e22; background: #fffbf0; }
+/* Stats */
+.stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.stat { background: #f9f5ff; border: 1px solid #e0d0f5; border-radius: 8px; padding: 10px 12px; text-align: center; flex: 1; min-width: 80px; }
+.stat .val { font-size: 1.4em; font-weight: 700; color: #7d3c98; }
+.stat .lbl { font-size: 0.7em; color: #888; margin-top: 2px; }
+.divider { border: none; border-top: 1px solid #f0f0f0; margin: 14px 0 0; }
+@media (max-width: 700px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<a class="back-link" href="../index.html">← Zurück zur Übersicht</a>
+<h1>Hashfunktionen &amp; Streuwerttabellen</h1>
+<div class="subtitle">Kapitel 1 · Interaktive Visualisierung</div>
+
+<div style="max-width:1100px;margin:0 auto 16px;background:white;border-radius:12px;padding:16px 22px;box-shadow:0 4px 18px rgba(0,0,0,0.08);font-size:0.88em;line-height:1.7;color:#444">
+    <b>Was ist eine Hashtabelle?</b> Eine Hashtabelle speichert Schlüssel an einem durch eine Hashfunktion berechneten Index.
+    Bei einer <b>Kollision</b> (zwei Schlüssel landen am gleichen Index) gibt es zwei Strategien:
+    <b>Verkettung</b> – jeder Platz verweist auf eine Liste;
+    <b>Offene Adressierung</b> – der nächste freie Platz wird durch Sondierung gesucht (linear, quadratisch, doppeltes Hashing).
+    Der <b>Ladefaktor α = m/N</b> (belegte Plätze / Tabellengröße) bestimmt die Leistung.
+    <b>Löschen</b> bei offener Adressierung erfordert eine <b>Tombstone-Markierung</b> (✗) – der Platz wird als „früher belegt" markiert, damit spätere Suchpfade nicht unterbrochen werden.
+</div>
+
+<div class="layout">
+    <div class="panel">
+        <div class="section-title">Einstellungen</div>
+
+        <label>Tabellengröße N</label>
+        <input type="number" id="tableSize" value="11" min="2" max="50">
+
+        <label>Kollisionsstrategie</label>
+        <select id="strategy" onchange="updateFormula()">
+            <option value="chain">Verkettung (Chaining)</option>
+            <option value="linear">Lineare Sondierung</option>
+            <option value="quadratic">Quadratische Sondierung</option>
+            <option value="double">Doppeltes Hashing</option>
+        </select>
+
+        <div id="formula-display" class="formula-box">h(k) = k mod N</div>
+
+        <hr class="divider">
+
+        <!-- INSERT -->
+        <div class="section-title">Einfügen</div>
+        <div class="op-row">
+            <input type="number" id="keyInput" value="10">
+            <button class="btn green" onclick="insertKey()">insert(k)</button>
+        </div>
+
+        <label style="margin-top:10px">Mehrere Schlüssel (kommagetrennt)</label>
+        <div class="op-row">
+            <input type="text" id="batchInput" value="10,22,31,4,15,28">
+            <button class="btn green" onclick="batchInsert()">Alle einfügen</button>
+        </div>
+
+        <hr class="divider">
+
+        <!-- SEARCH -->
+        <div class="section-title">Suchen</div>
+        <div class="op-row">
+            <input type="number" id="searchInput" value="15">
+            <button class="btn blue" onclick="searchKey()">search(k)</button>
+        </div>
+
+        <hr class="divider">
+
+        <!-- DELETE -->
+        <div class="section-title">Löschen</div>
+        <div class="op-row">
+            <input type="number" id="deleteInput" value="15">
+            <button class="btn red" onclick="deleteKey()">delete(k)</button>
+        </div>
+        <div id="tombstone-hint" style="font-size:0.78em;color:#c0392b;margin-top:6px;display:none">
+            ⚠ Bei offener Adressierung wird statt echter Löschung ein Tombstone (✗) gesetzt, damit spätere Suchpfade nicht unterbrochen werden.
+        </div>
+
+        <hr class="divider">
+
+        <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn secondary" onclick="resetTable()">Leeren</button>
+            <button class="btn secondary" onclick="initTable()">Neu erstellen</button>
+        </div>
+
+        <div class="section-title">Statistiken</div>
+        <div class="stats">
+            <div class="stat"><div class="val" id="stat-n">11</div><div class="lbl">Größe N</div></div>
+            <div class="stat"><div class="val" id="stat-m">0</div><div class="lbl">Belegt m</div></div>
+            <div class="stat"><div class="val" id="stat-alpha">0.00</div><div class="lbl">Ladefaktor α</div></div>
+            <div class="stat"><div class="val" id="stat-tomb">0</div><div class="lbl">Tombstones</div></div>
+        </div>
+
+        <div class="section-title">Laufzeitabschätzung (aktuelles α)</div>
+        <div id="cost-display" class="formula-box" style="line-height:1.8"></div>
+    </div>
+
+    <div class="panel">
+        <div class="section-title">Hashtabelle</div>
+        <div class="hash-table-wrap" id="table-display"></div>
+
+        <div class="section-title">Schritte</div>
+        <div class="steps" id="steps-display"></div>
+    </div>
+</div>
+
+<script>
+let N = 11;
+let strategy = 'chain';
+let tableData = [];
+let lastOp = null; // { type: 'insert'|'delete'|'search', idx, found }
+
+function initTable() {
+    N = parseInt(document.getElementById('tableSize').value) || 11;
+    strategy = document.getElementById('strategy').value;
+    tableData = strategy === 'chain' ? Array.from({length: N}, () => []) : Array(N).fill(null);
+    lastOp = null;
+    document.getElementById('stat-n').textContent = N;
+    clearSteps();
+    renderTable();
+    updateStats();
+    updateFormula();
+}
+
+function resetTable() {
+    tableData = strategy === 'chain' ? Array.from({length: N}, () => []) : Array(N).fill(null);
+    lastOp = null;
+    clearSteps();
+    renderTable();
+    updateStats();
+}
+
+function updateFormula() {
+    strategy = document.getElementById('strategy').value;
+    const formulas = {
+        chain:     'h(k) = k mod N  (Verkettung)',
+        linear:    'h(k) = k mod N\ns_j(k) = (h(k) + j) mod N',
+        quadratic: 'h(k) = k mod N\ns_j(k) = (h(k) + j(j+1)/2) mod N\n⚠ N muss 2ᵖ sein!',
+        double:    'h₁(k) = k mod N\nh₂(k) = (k mod (N−1)) + 1\ns_j(k) = (h₁(k) + j·h₂(k)) mod N'
+    };
+    document.getElementById('formula-display').textContent = formulas[strategy];
+    document.getElementById('tombstone-hint').style.display = strategy === 'chain' ? 'none' : '';
+}
+
+function h1(k) { return ((k % N) + N) % N; }
+function h2(k) { return ((k % (N - 1)) + N - 1) % (N - 1) + 1; }
+
+function probeSequence(k) {
+    const base = h1(k);
+    return Array.from({length: N}, (_, j) => {
+        if (strategy === 'linear')    return (base + j) % N;
+        if (strategy === 'quadratic') return (base + Math.floor(j*(j+1)/2)) % N;
+        return (base + j * h2(k)) % N;
+    });
+}
+
+// ── INSERT ──────────────────────────────────────────────────────────────────
+function insertKey() {
+    strategy = document.getElementById('strategy').value;
+    const k = parseInt(document.getElementById('keyInput').value);
+    if (isNaN(k)) return;
+    if (!tableData.length) initTable();
+    performInsert(k);
+}
+
+function batchInsert() {
+    strategy = document.getElementById('strategy').value;
+    if (!tableData.length) initTable();
+    document.getElementById('batchInput').value
+        .split(',').map(s => parseInt(s.trim())).filter(v => !isNaN(v))
+        .forEach(k => performInsert(k));
+}
+
+function performInsert(k) {
+    const steps = [];
+    lastOp = null;
+
+    if (strategy === 'chain') {
+        const idx = h1(k);
+        steps.push({type:'info',    msg: `insert(${k}): h(${k}) = ${k} mod ${N} = ${idx}`});
+        tableData[idx].unshift(k);
+        lastOp = {type:'insert', idx};
+        steps.push({type:'insert',  msg: `→ Platz [${idx}]: am Kopf der Liste eingefügt → [${idx}]: ${tableData[idx].join(' → ')}`});
+    } else {
+        const base = h1(k);
+        steps.push({type:'info', msg: `insert(${k}): h₁(${k}) = ${base}${strategy==='double'?' , h₂('+k+')='+h2(k):''}`});
+        const seq = probeSequence(k);
+        let placed = false;
+        for (let j = 0; j < seq.length; j++) {
+            const idx = seq[j];
+            const occupied = tableData[idx] !== null && tableData[idx] !== 'TOMB';
+            if (j === 0) steps.push({type:'probe', msg: `s₀ → Platz [${idx}]: ${occupied ? `belegt (${tableData[idx]}) – Kollision!` : tableData[idx]==='TOMB' ? 'Tombstone → kann hier einfügen' : 'frei'}`});
+            else         steps.push({type: occupied ? 'collision' : 'probe', msg: `s${j} → Platz [${idx}]: ${occupied ? `belegt (${tableData[idx]}) – weiter sondieren` : tableData[idx]==='TOMB' ? 'Tombstone → einfügen hier' : 'frei'}`});
+
+            if (!occupied) {
+                tableData[idx] = k;
+                lastOp = {type:'insert', idx};
+                steps.push({type:'insert', msg: `✓ k=${k} eingefügt an Platz [${idx}] (nach ${j} Kollision${j!==1?'en':''})`});
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) steps.push({type:'warn', msg: `⚠ Tabelle voll! k=${k} konnte nicht eingefügt werden.`});
+    }
+
+    addSteps(steps);
+    renderTable();
+    updateStats();
+}
+
+// ── SEARCH ───────────────────────────────────────────────────────────────────
+function searchKey() {
+    strategy = document.getElementById('strategy').value;
+    const k = parseInt(document.getElementById('searchInput').value);
+    if (isNaN(k)) return;
+    if (!tableData.length) initTable();
+    performSearch(k);
+}
+
+function performSearch(k) {
+    const steps = [];
+    lastOp = null;
+
+    if (strategy === 'chain') {
+        const idx = h1(k);
+        steps.push({type:'search', msg: `search(${k}): h(${k}) = ${idx} → durchsuche Liste [${idx}]`});
+        const pos = tableData[idx].indexOf(k);
+        if (pos !== -1) {
+            lastOp = {type:'search', idx, found: true};
+            steps.push({type:'insert', msg: `✓ k=${k} gefunden an Platz [${idx}], Position ${pos} in der Liste`});
+        } else {
+            steps.push({type:'delete', msg: `✗ k=${k} nicht in Liste [${idx}] vorhanden`});
+        }
+    } else {
+        const base = h1(k);
+        steps.push({type:'search', msg: `search(${k}): h₁(${k}) = ${base}${strategy==='double'?' , h₂('+k+')='+h2(k):''}`});
+        const seq = probeSequence(k);
+        let found = false;
+        for (let j = 0; j < seq.length; j++) {
+            const idx = seq[j];
+            if (tableData[idx] === null) {
+                steps.push({type:'delete', msg: `s${j} → Platz [${idx}]: leer → Suche endet. k=${k} nicht gefunden.`});
+                break;
+            } else if (tableData[idx] === 'TOMB') {
+                steps.push({type:'probe', msg: `s${j} → Platz [${idx}]: Tombstone – weiter sondieren`});
+            } else if (tableData[idx] === k) {
+                lastOp = {type:'search', idx, found: true};
+                steps.push({type:'insert', msg: `✓ k=${k} gefunden an Platz [${idx}] (${j} Sondierung${j!==1?'en':''})`});
+                found = true;
+                break;
+            } else {
+                steps.push({type:'probe', msg: `s${j} → Platz [${idx}]: ${tableData[idx]} ≠ ${k} – weiter`});
+            }
+        }
+        if (!found && !steps.some(s => s.msg.includes('nicht gefunden'))) {
+            steps.push({type:'delete', msg: `✗ k=${k} nicht gefunden (alle Plätze durchsucht)`});
+        }
+    }
+
+    addSteps(steps);
+    renderTable();
+}
+
+// ── DELETE ───────────────────────────────────────────────────────────────────
+function deleteKey() {
+    strategy = document.getElementById('strategy').value;
+    const k = parseInt(document.getElementById('deleteInput').value);
+    if (isNaN(k)) return;
+    if (!tableData.length) initTable();
+    performDelete(k);
+}
+
+function performDelete(k) {
+    const steps = [];
+    lastOp = null;
+
+    if (strategy === 'chain') {
+        const idx = h1(k);
+        steps.push({type:'search', msg: `delete(${k}): h(${k}) = ${idx} → suche in Liste [${idx}]`});
+        const pos = tableData[idx].indexOf(k);
+        if (pos !== -1) {
+            tableData[idx].splice(pos, 1);
+            lastOp = {type:'delete', idx};
+            steps.push({type:'delete', msg: `✓ k=${k} aus Liste [${idx}] entfernt → [${idx}]: ${tableData[idx].length ? tableData[idx].join(' → ') : '(leer)'}`});
+        } else {
+            steps.push({type:'warn', msg: `✗ k=${k} nicht in Liste [${idx}] – nichts gelöscht`});
+        }
+    } else {
+        const base = h1(k);
+        steps.push({type:'search', msg: `delete(${k}): h₁(${k}) = ${base} → Sondierung beginnt`});
+        steps.push({type:'warn',   msg: `⚠ Echter Löschvorgang: kein einfaches Freiräumen! → Tombstone (✗) setzen`});
+        const seq = probeSequence(k);
+        let deleted = false;
+        for (let j = 0; j < seq.length; j++) {
+            const idx = seq[j];
+            if (tableData[idx] === null) {
+                steps.push({type:'delete', msg: `s${j} → Platz [${idx}]: leer → k=${k} nicht vorhanden. Abbruch.`});
+                break;
+            } else if (tableData[idx] === 'TOMB') {
+                steps.push({type:'probe', msg: `s${j} → Platz [${idx}]: Tombstone – weiter sondieren`});
+            } else if (tableData[idx] === k) {
+                tableData[idx] = 'TOMB';
+                lastOp = {type:'delete', idx};
+                steps.push({type:'delete', msg: `✓ k=${k} an Platz [${idx}] gefunden → Tombstone (✗) gesetzt (${j} Sondierung${j!==1?'en':''})`});
+                deleted = true;
+                break;
+            } else {
+                steps.push({type:'probe', msg: `s${j} → Platz [${idx}]: ${tableData[idx]} ≠ ${k} – weiter`});
+            }
+        }
+        if (!deleted && !steps.some(s => s.msg.includes('nicht vorhanden'))) {
+            steps.push({type:'warn', msg: `✗ k=${k} nicht gefunden`});
+        }
+    }
+
+    addSteps(steps);
+    renderTable();
+    updateStats();
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function addSteps(steps) {
+    const container = document.getElementById('steps-display');
+    // prepend in reverse so latest op appears at top
+    [...steps].reverse().forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'step ' + s.type;
+        div.textContent = s.msg;
+        container.prepend(div);
+    });
+}
+
+function clearSteps() {
+    document.getElementById('steps-display').innerHTML = '';
+}
+
+function renderTable() {
+    const wrap = document.getElementById('table-display');
+
+    if (strategy === 'chain') {
+        let html = '<table class="htable"><tr><th>Index</th><th>Kette (Head → Tail)</th></tr>';
+        for (let i = 0; i < N; i++) {
+            const isNew = lastOp && lastOp.type === 'insert' && lastOp.idx === i;
+            const isDel = lastOp && lastOp.type === 'delete' && lastOp.idx === i;
+            const isFound = lastOp && lastOp.type === 'search' && lastOp.idx === i && lastOp.found;
+            const content = tableData[i].length ? tableData[i].join(' → ') : '—';
+            const cls = tableData[i].length
+                ? (isNew ? 'new-item' : isDel ? 'del-item' : isFound ? 'found-item' : 'chain')
+                : '';
+            html += `<tr><td class="slot-idx">[${i}]</td><td class="${cls}">${content}</td></tr>`;
+        }
+        html += '</table>';
+        wrap.innerHTML = html;
+    } else {
+        let html = '<table class="htable"><tr><th></th>';
+        for (let i = 0; i < N; i++) html += `<th>[${i}]</th>`;
+        html += '</tr><tr><th>Wert</th>';
+        for (let i = 0; i < N; i++) {
+            const v = tableData[i];
+            const isNew   = lastOp && lastOp.type === 'insert' && lastOp.idx === i;
+            const isDel   = lastOp && lastOp.type === 'delete' && lastOp.idx === i;
+            const isFound = lastOp && lastOp.type === 'search' && lastOp.idx === i && lastOp.found;
+            const cls = v === null ? '' : v === 'TOMB' ? (isDel ? 'del-item' : 'tombstone') : isNew ? 'new-item' : isFound ? 'found-item' : 'occupied';
+            html += `<td class="${cls}">${v === null ? '' : v === 'TOMB' ? '✗' : v}</td>`;
+        }
+        html += '</tr></table>';
+        wrap.innerHTML = html;
+    }
+}
+
+function updateStats() {
+    let m = 0, tombs = 0;
+    if (strategy === 'chain') {
+        m = tableData.reduce((s, arr) => s + arr.length, 0);
+    } else {
+        tableData.forEach(v => { if (v !== null && v !== 'TOMB') m++; else if (v === 'TOMB') tombs++; });
+    }
+    const alpha = m / N;
+    document.getElementById('stat-m').textContent = m;
+    document.getElementById('stat-tomb').textContent = tombs;
+    document.getElementById('stat-alpha').textContent = alpha.toFixed(2);
+
+    let costs = '';
+    if (strategy === 'chain') {
+        costs = `Erfolgreich:  1 + α/2 ≈ ${(1 + alpha/2).toFixed(2)}\nErfolglos:   α ≈ ${alpha.toFixed(2)}`;
+    } else if (alpha >= 1) {
+        costs = 'α ≥ 1: Tabelle voll!';
+    } else {
+        const suc  = alpha > 0 ? (-(1/alpha) * Math.log(1 - alpha)).toFixed(2) : '1.00';
+        const fail = (1 / (1 - alpha)).toFixed(2);
+        costs = `Erfolgreich:  (1/α)·ln(1/(1−α)) ≈ ${suc}\nErfolglos:   1/(1−α) ≈ ${fail}`;
+    }
+    document.getElementById('cost-display').textContent = costs;
+}
+
+initTable();
+updateFormula();
+</script>
+</body>
+</html>

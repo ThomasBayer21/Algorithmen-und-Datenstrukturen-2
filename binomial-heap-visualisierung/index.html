@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Binomial-Halden Visualisierung</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #f5f0fd; margin: 0; padding: 20px; }
+.back-link { display: inline-block; margin-bottom: 16px; color: #7a5fb5; text-decoration: none; font-size: 0.9em; }
+.back-link:hover { text-decoration: underline; }
+h1 { color: #2c3e50; margin: 0 0 4px; font-size: 1.7em; }
+.subtitle { color: #888; font-size: 0.9em; margin-bottom: 20px; }
+.layout { display: grid; grid-template-columns: 280px 1fr; gap: 18px; max-width: 1100px; margin: 0 auto; }
+.panel { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 18px rgba(0,0,0,0.1); }
+label { display: block; font-size: 0.83em; font-weight: 600; color: #555; margin: 10px 0 4px; }
+input[type=number], input[type=text] { width: 100%; padding: 7px 10px; border: 1.5px solid #ddd; border-radius: 6px; font-size: 0.93em; outline: none; }
+input:focus { border-color: #9b59b6; }
+.btn { display: inline-block; padding: 8px 16px; background: #9b59b6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; margin-top: 8px; width: 100%; transition: background 0.2s; }
+.btn:hover { background: #7d3c98; }
+.btn.danger { background: #e74c3c; }
+.btn.danger:hover { background: #c0392b; }
+.btn.neutral { background: #7f8c8d; }
+.btn.neutral:hover { background: #5d6d7e; }
+.section-title { font-size: 0.77em; text-transform: uppercase; letter-spacing: 0.07em; color: #bbb; font-weight: 700; margin: 16px 0 8px; border-top: 1px solid #f0f0f0; padding-top: 14px; }
+/* SVG Canvas */
+#heap-svg { width: 100%; border: 1px solid #e8e0f8; border-radius: 8px; background: #fefcff; min-height: 280px; }
+/* Log */
+.log { max-height: 200px; overflow-y: auto; margin-top: 12px; }
+.log-entry { font-size: 0.82em; padding: 5px 8px; border-radius: 4px; margin-bottom: 4px; border-left: 3px solid #ccc; }
+.log-entry.op { border-left-color: #9b59b6; background: #f9f5ff; }
+.log-entry.merge { border-left-color: #3498db; background: #f0f7fd; }
+.log-entry.warn { border-left-color: #e67e22; background: #fffbf0; }
+/* Heap state badge */
+.heap-state { font-size: 0.8em; color: #666; margin-top: 8px; font-family: monospace; background: #f5f0fd; padding: 6px 10px; border-radius: 6px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<a class="back-link" href="../index.html">← Zurück zur Übersicht</a>
+<h1>Vorrangwarteschlangen — Binomial-Halden</h1>
+<div class="subtitle">Kapitel 2 · Min-Binomial-Halde interaktiv</div>
+
+<div style="max-width:1100px;margin:0 auto 16px;background:white;border-radius:12px;padding:16px 22px;box-shadow:0 4px 18px rgba(0,0,0,0.08);font-size:0.88em;line-height:1.7;color:#444">
+    <b>Was ist eine Binomial-Halde?</b> Eine Menge von Binomial-Bäumen mit streng verschiedenen Graden. Ein <b>Binomial-Baum B<sub>k</sub></b> entsteht, indem zwei B<sub>k−1</sub>-Bäume zusammengeführt werden – der mit dem kleineren Wurzelwert wird zum Elternteil des anderen.
+    Eine Min-Binomial-Halde mit N Elementen besteht genau aus den Bäumen B<sub>k</sub>, für die Bit k in der Binärdarstellung von N gesetzt ist.
+    Alle Operationen (insert, extractMin, merge, changePrio) laufen in <b>O(log N)</b>.
+</div>
+<div class="layout">
+    <div class="panel">
+        <div class="section-title">Operationen</div>
+
+        <label>insert(k)</label>
+        <input type="number" id="insertVal" value="5">
+        <button class="btn" onclick="doInsert()">insert</button>
+
+        <label style="margin-top:14px">extractMin</label>
+        <button class="btn danger" onclick="doExtractMin()">extractMin()</button>
+
+        <label>changePrio — Wert suchen</label>
+        <input type="number" id="cpOldVal" placeholder="alter Wert">
+        <label>Neue Priorität</label>
+        <input type="number" id="cpNewVal" placeholder="neuer Wert">
+        <button class="btn" style="background:#2980b9" onclick="doChangePrio()">changePrio</button>
+
+        <div class="section-title">Demo-Sequenz</div>
+        <button class="btn neutral" onclick="runDemo()">Demo aus Vorlage ausführen</button>
+        <button class="btn neutral" onclick="resetHeap()">Halde leeren</button>
+
+        <div class="section-title">Aktueller Zustand</div>
+        <div class="heap-state" id="heap-state-display">— leer —</div>
+    </div>
+
+    <div class="panel">
+        <div class="section-title">Visualisierung</div>
+        <svg id="heap-svg" viewBox="0 0 800 300"></svg>
+
+        <div class="section-title">Protokoll</div>
+        <div class="log" id="log-display"></div>
+    </div>
+</div>
+
+<script>
+// ─── Binomial Heap Data Structure ───────────────────────────────────────────
+// Node: { val, children: [Node] }  children[0] = highest-degree child
+// Heap: array of trees sorted by degree (index = degree)
+
+let heap = []; // sparse array: heap[k] = root of B_k tree or null
+
+function nodeNew(val) { return { val, children: [] }; }
+
+function treeSize(node) {
+    if (!node) return 0;
+    return 1 + node.children.reduce((s, c) => s + treeSize(c), 0);
+}
+
+function treeDegree(node) {
+    return node ? node.children.length : -1;
+}
+
+function combine(t1, t2) {
+    // Both must have same degree; min-heap: smaller root becomes parent
+    if (t1.val <= t2.val) {
+        t1.children = [t2, ...t1.children];
+        return t1;
+    } else {
+        t2.children = [t1, ...t2.children];
+        return t2;
+    }
+}
+
+function mergeHeaps(h1, h2) {
+    const maxLen = Math.max(h1.length, h2.length) + 1;
+    let carry = null;
+    const result = [];
+    for (let k = 0; k < maxLen || carry; k++) {
+        const a = k < h1.length ? h1[k] : null;
+        const b = k < h2.length ? h2[k] : null;
+        let trees = [a, b, carry].filter(Boolean);
+        carry = null;
+        if (trees.length === 0) { result.push(null); }
+        else if (trees.length === 1) { result.push(trees[0]); }
+        else if (trees.length === 2) {
+            result.push(null);
+            carry = combine(trees[0], trees[1]);
+        } else { // 3
+            result.push(trees[0]);
+            carry = combine(trees[1], trees[2]);
+        }
+    }
+    // Trim trailing nulls
+    while (result.length && result[result.length - 1] === null) result.pop();
+    return result;
+}
+
+function heapInsert(val) {
+    heap = mergeHeaps(heap, [nodeNew(val)]);
+    log(`insert(${val}) → merge mit B₀{${val}}`, 'op');
+}
+
+function heapExtractMin() {
+    if (!heap.length) { log('Halde ist leer!', 'warn'); return null; }
+    let minIdx = -1;
+    let minVal = Infinity;
+    heap.forEach((t, i) => { if (t && t.val < minVal) { minVal = t.val; minIdx = i; } });
+    const minTree = heap[minIdx];
+    heap[minIdx] = null;
+    while (heap.length && !heap[heap.length - 1]) heap.pop();
+
+    // children become their own heap (reverse order: B_{k-1}, ..., B_0)
+    const childHeap = [...minTree.children].reverse();
+    heap = mergeHeaps(heap, childHeap);
+    log(`extractMin() → Minimum=${minVal} (B${minIdx}-Wurzel entfernt), Kinder eingemergt`, 'op');
+    return minVal;
+}
+
+function findNode(root, val, parent = null) {
+    if (!root) return null;
+    if (root.val === val) return { node: root, parent };
+    for (const c of root.children) {
+        const res = findNode(c, val, root);
+        if (res) return res;
+    }
+    return null;
+}
+
+function findInHeap(val) {
+    for (const t of heap) {
+        if (!t) continue;
+        const res = findNode(t, val);
+        if (res) return res;
+    }
+    return null;
+}
+
+function bubbleUp(node, parent) {
+    while (parent && node.val < parent.val) {
+        [node.val, parent.val] = [parent.val, node.val];
+        node = parent;
+        parent = null; // We'd need parent tracking — simplified here
+    }
+}
+
+function doChangePrio() {
+    const oldVal = parseInt(document.getElementById('cpOldVal').value);
+    const newVal = parseInt(document.getElementById('cpNewVal').value);
+    if (isNaN(oldVal) || isNaN(newVal)) return;
+
+    const found = findInHeap(oldVal);
+    if (!found) { log(`changePrio: Wert ${oldVal} nicht gefunden!`, 'warn'); return; }
+    const { node, parent } = found;
+
+    if (newVal > oldVal && node.children.length > 0) {
+        // increase + not a leaf → remove + re-insert
+        log(`changePrio(${oldVal} → ${newVal}): increase & kein Blatt → remove + insert`, 'op');
+        removeNode(oldVal);
+        heapInsert(newVal);
+    } else {
+        node.val = newVal;
+        log(`changePrio(${oldVal} → ${newVal}): Wert direkt gesetzt`, 'op');
+        if (newVal < oldVal) {
+            // Bubble up (swap values with parent chain)
+            bubbleUpFromNode(node, heap);
+            log('→ Bubble-Up: Wert mit Vorgängern getauscht bis Halden-Bedingung gilt', 'merge');
+        }
+    }
+    renderHeap();
+    updateStateDisplay();
+}
+
+function bubbleUpFromNode(node, trees) {
+    // Find path from root to node, then swap upward
+    for (const t of trees) {
+        if (!t) continue;
+        const path = [];
+        if (findPath(t, node, path)) {
+            for (let i = path.length - 1; i > 0; i--) {
+                if (path[i].val < path[i-1].val) {
+                    [path[i].val, path[i-1].val] = [path[i-1].val, path[i].val];
+                } else break;
+            }
+            return;
+        }
+    }
+}
+
+function findPath(root, target, path) {
+    path.push(root);
+    if (root === target) return true;
+    for (const c of root.children) {
+        if (findPath(c, target, path)) return true;
+    }
+    path.pop();
+    return false;
+}
+
+function removeNode(val) {
+    // Set to -Infinity, bubble up, extract min
+    const found = findInHeap(val);
+    if (!found) return;
+    found.node.val = -Infinity;
+    bubbleUpFromNode(found.node, heap);
+    heapExtractMin();
+    log(`remove(${val}) abgeschlossen`, 'op');
+}
+
+function doInsert() {
+    const v = parseInt(document.getElementById('insertVal').value);
+    if (isNaN(v)) return;
+    heapInsert(v);
+    renderHeap();
+    updateStateDisplay();
+}
+
+function doExtractMin() {
+    const v = heapExtractMin();
+    if (v !== null) {
+        renderHeap();
+        updateStateDisplay();
+    }
+}
+
+function resetHeap() {
+    heap = [];
+    document.getElementById('log-display').innerHTML = '';
+    renderHeap();
+    updateStateDisplay();
+}
+
+async function runDemo() {
+    resetHeap();
+    const ops = [
+        () => heapInsert(5),
+        () => heapInsert(7),
+        () => heapInsert(4),
+        () => heapInsert(2),
+        () => { /* changePrio 7→1 */
+            const f = findInHeap(7);
+            if (f) { f.node.val = 1; bubbleUpFromNode(f.node, heap); log('changePrio(7→1): decrease, bubble up', 'op'); }
+        },
+        () => heapInsert(8),
+        () => heapExtractMin(),
+        () => heapInsert(3),
+        () => heapInsert(9),
+        () => heapInsert(1),
+    ];
+    for (const op of ops) {
+        op();
+        renderHeap();
+        updateStateDisplay();
+        await sleep(700);
+    }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── Rendering ──────────────────────────────────────────────────────────────
+const COLORS = ['#9b59b6','#2980b9','#27ae60','#e67e22','#e74c3c','#1abc9c'];
+const NODE_R = 18;
+const V_GAP = 52;
+const H_GAP = 36;
+
+function treeWidth(node) {
+    if (!node || node.children.length === 0) return 1;
+    return node.children.reduce((s, c) => s + treeWidth(c), 0);
+}
+
+function renderTree(svg, node, x, y, parentX, parentY, depth, colorIdx) {
+    if (!node) return;
+    // Line to parent
+    if (parentX !== null) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', parentX); line.setAttribute('y1', parentY);
+        line.setAttribute('x2', x); line.setAttribute('y2', y);
+        line.setAttribute('stroke', '#ccc'); line.setAttribute('stroke-width', 1.5);
+        svg.appendChild(line);
+    }
+    // Circle
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x); circle.setAttribute('cy', y);
+    circle.setAttribute('r', NODE_R);
+    circle.setAttribute('fill', COLORS[colorIdx % COLORS.length]);
+    circle.setAttribute('stroke', 'white'); circle.setAttribute('stroke-width', 2);
+    svg.appendChild(circle);
+    // Text
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', x); text.setAttribute('y', y + 5);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', 'white');
+    text.setAttribute('font-size', '12'); text.setAttribute('font-weight', 'bold');
+    text.setAttribute('font-family', 'Segoe UI, sans-serif');
+    text.textContent = node.val;
+    svg.appendChild(text);
+
+    // Render children left-to-right
+    const childWidths = node.children.map(treeWidth);
+    const totalW = childWidths.reduce((a, b) => a + b, 0);
+    let cx = x - (totalW / 2) * H_GAP + H_GAP / 2;
+    node.children.forEach((child, i) => {
+        const cw = childWidths[i];
+        renderTree(svg, child, cx + (cw / 2 - 0.5) * H_GAP, y + V_GAP, x, y, depth + 1, colorIdx);
+        cx += cw * H_GAP;
+    });
+}
+
+function renderHeap() {
+    const svg = document.getElementById('heap-svg');
+    svg.innerHTML = '';
+
+    const trees = heap.filter(Boolean);
+    if (!trees.length) {
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        t.setAttribute('x', 400); t.setAttribute('y', 140);
+        t.setAttribute('text-anchor', 'middle'); t.setAttribute('fill', '#ccc');
+        t.setAttribute('font-size', '16'); t.setAttribute('font-family', 'Segoe UI, sans-serif');
+        t.textContent = '— Halde leer —';
+        svg.appendChild(t);
+        return;
+    }
+
+    // Compute total width
+    const widths = heap.map(t => t ? treeWidth(t) : 0);
+    const total = widths.reduce((a, b) => a + b, 0);
+    const svgW = Math.max(800, total * H_GAP + 80);
+    svg.setAttribute('viewBox', `0 0 ${svgW} 300`);
+
+    let x = 50;
+    heap.forEach((tree, idx) => {
+        if (!tree) return;
+        const w = treeWidth(tree);
+        const cx = x + (w / 2 - 0.5) * H_GAP;
+
+        // Label B_k
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', cx); label.setAttribute('y', 22);
+        label.setAttribute('text-anchor', 'middle'); label.setAttribute('fill', '#aaa');
+        label.setAttribute('font-size', '11'); label.setAttribute('font-family', 'Segoe UI, sans-serif');
+        label.textContent = `B${idx}`;
+        svg.appendChild(label);
+
+        renderTree(svg, tree, cx, 50, null, null, 0, idx);
+        x += w * H_GAP + 30;
+
+        // Divider
+        if (idx < heap.length - 1) {
+            const div = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            div.setAttribute('x1', x - 15); div.setAttribute('y1', 30);
+            div.setAttribute('x2', x - 15); div.setAttribute('y2', 280);
+            div.setAttribute('stroke', '#eeeeee'); div.setAttribute('stroke-width', 1);
+            div.setAttribute('stroke-dasharray', '4,3');
+            svg.appendChild(div);
+        }
+    });
+}
+
+function updateStateDisplay() {
+    const parts = heap.map((t, i) => t ? `B${i}{${flatVals(t).join(',')}}` : null).filter(Boolean);
+    const total = heap.reduce((s, t) => s + (t ? treeSize(t) : 0), 0);
+    document.getElementById('heap-state-display').textContent =
+        parts.length ? `N=${total}: ${parts.join('  +  ')}` : '— leer —';
+}
+
+function flatVals(node) {
+    if (!node) return [];
+    return [node.val, ...node.children.flatMap(flatVals)];
+}
+
+function log(msg, type) {
+    const container = document.getElementById('log-display');
+    const div = document.createElement('div');
+    div.className = 'log-entry ' + type;
+    div.textContent = msg;
+    container.prepend(div);
+}
+
+// Init
+renderHeap();
+updateStateDisplay();
+</script>
+</body>
+</html>

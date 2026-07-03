@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabellengestützte Programmierung — Editierdistanz</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #fdf0f0; margin: 0; padding: 20px; }
+.back-link { display: inline-block; margin-bottom: 16px; color: #c0392b; text-decoration: none; font-size: 0.9em; }
+.back-link:hover { text-decoration: underline; }
+h1 { color: #2c3e50; margin: 0 0 4px; font-size: 1.7em; }
+.subtitle { color: #888; font-size: 0.9em; margin-bottom: 18px; }
+.tabs { display: flex; gap: 2px; margin-bottom: 18px; }
+.tab { padding: 8px 20px; background: #ddd; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.88em; color: #555; border: none; }
+.tab.active { background: white; color: #922b21; font-weight: 700; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.layout2 { display: grid; grid-template-columns: 260px 1fr; gap: 16px; max-width: 1100px; }
+.panel { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 4px 18px rgba(0,0,0,0.09); }
+label { display: block; font-size: 0.82em; font-weight: 600; color: #555; margin: 9px 0 3px; }
+input[type=text] { width: 100%; padding: 7px 10px; border: 1.5px solid #ddd; border-radius: 6px; font-size: 0.9em; outline: none; font-family: monospace; }
+input:focus { border-color: #c0392b; }
+.btn { display: block; width: 100%; padding: 9px; background: #c0392b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.88em; margin-top: 9px; }
+.btn:hover { background: #922b21; }
+.btn.blue { background: #2980b9; }
+.btn.blue:hover { background: #1a5276; }
+.btn.neutral { background: #7f8c8d; }
+.section-title { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.07em; color: #bbb; font-weight: 700; margin: 14px 0 7px; border-top: 1px solid #f0f0f0; padding-top: 12px; }
+/* DP Table */
+.dp-wrap { overflow-x: auto; }
+table.dp { border-collapse: collapse; font-size: 0.88em; }
+table.dp th { background: #f8d7da; padding: 6px 10px; border: 1px solid #e0b0b5; text-align: center; font-family: monospace; min-width: 38px; }
+table.dp td { padding: 6px 10px; border: 1px solid #e8d0d2; text-align: center; min-width: 38px; cursor: pointer; transition: background 0.15s; }
+table.dp td:hover { background: #fef9f9; }
+table.dp td.base { background: #f0f0f0; color: #888; }
+table.dp td.filled { background: #fdf4f4; }
+table.dp td.active { background: #fef08a; font-weight: 700; }
+table.dp td.path { background: #bbf7d0 !important; font-weight: 700; border: 2px solid #27ae60; }
+table.dp td.match { background: #dbeafe; }
+/* Formula box */
+.formula { font-family: monospace; background: #fdf0f0; border: 1px solid #f0c8cc; border-radius: 6px; padding: 8px 12px; font-size: 0.85em; color: #7a1a1a; margin-top: 8px; line-height: 1.8; }
+/* Op list */
+.op-list { font-size: 0.83em; margin-top: 8px; }
+.op-item { padding: 4px 8px; border-left: 3px solid #e74c3c; background: #fdf5f5; margin-bottom: 4px; border-radius: 0 4px 4px 0; }
+.op-item.insert { border-left-color: #27ae60; background: #f0faf4; }
+.op-item.delete { border-left-color: #e74c3c; background: #fdf0f0; }
+.op-item.replace { border-left-color: #f39c12; background: #fffbf0; }
+.op-item.match { border-left-color: #3498db; background: #f0f7fd; }
+/* Blocksatz */
+.bj-table { border-collapse: collapse; font-size: 0.84em; width: 100%; }
+.bj-table th { background: #f8d7da; padding: 5px 8px; border: 1px solid #e0b0b5; }
+.bj-table td { padding: 5px 8px; border: 1px solid #f0d0d2; text-align: center; }
+.bj-table td.best { background: #bbf7d0; font-weight: 700; }
+</style>
+</head>
+<body>
+<a class="back-link" href="../index.html">← Zurück zur Übersicht</a>
+<h1>Tabellengestützte Programmierung</h1>
+<div class="subtitle">Kapitel 5 · Editierdistanz &amp; Blocksatz</div>
+
+<div style="max-width:1100px;margin:0 auto 16px;background:white;border-radius:12px;padding:16px 22px;box-shadow:0 4px 18px rgba(0,0,0,0.08);font-size:0.88em;line-height:1.7;color:#444">
+    <b>Tabellengestützte Programmierung (Dynamic Programming)</b> löst Probleme, indem Teillösungen in einer Tabelle gespeichert und wiederverwendet werden.<br>
+    <b>Editierdistanz:</b> Minimale Anzahl von Einfüge-, Lösch- und Ersetz-Operationen, um einen String in einen anderen umzuwandeln. Jede Zelle D(i,j) ergibt sich aus den drei Nachbarzellen – Laufzeit O(|s|·|t|).<br>
+    <b>Blocksatz-DP:</b> Optimale Zeilenumbrüche für einen Text, sodass der quadratische Straf-Malus für überschüssigen Leerraum minimiert wird – Laufzeit O(n²).
+</div>
+<div class="tabs">
+    <button class="tab active" onclick="switchTab('edit')">Editierdistanz</button>
+    <button class="tab" onclick="switchTab('blocksatz')">Blocksatz-DP</button>
+</div>
+
+<!-- EDITIERDISTANZ -->
+<div id="tab-edit" class="tab-content active">
+<div class="layout2">
+    <div class="panel">
+        <div class="section-title">Eingabe</div>
+        <label>Quellstring s</label>
+        <input type="text" id="src-str" value="OTTO">
+        <label>Zielstring t</label>
+        <input type="text" id="tgt-str" value="LOTTO">
+        <button class="btn" onclick="buildDP()">Tabelle aufbauen</button>
+        <button class="btn blue" onclick="dpStep()">Nächste Zeile</button>
+        <button class="btn neutral" onclick="dpFull()">Vollständig füllen</button>
+        <button class="btn neutral" onclick="dpBacktrack()">Pfad zurückverfolgen</button>
+
+        <div class="section-title">Formel</div>
+        <div class="formula">
+            D(i,j) = min(<br>
+            &nbsp; D(i−1,j)+1 &nbsp; [Löschen]<br>
+            &nbsp; D(i,j−1)+1 &nbsp; [Einfügen]<br>
+            &nbsp; D(i−1,j−1)+δ &nbsp; [δ=0 gleich, 1 ersetzen]<br>
+            )
+        </div>
+        <div class="formula" id="result-display" style="display:none"></div>
+
+        <div class="section-title">Operationsfolge</div>
+        <div class="op-list" id="op-list"></div>
+    </div>
+    <div class="panel">
+        <div class="section-title">DP-Tabelle</div>
+        <div class="dp-wrap" id="dp-table-wrap"></div>
+        <div style="font-size:0.78em;color:#888;margin-top:8px">
+            💡 Klicke auf eine Zelle um die Berechnung zu sehen.
+        </div>
+        <div id="cell-info" class="formula" style="display:none;margin-top:8px"></div>
+    </div>
+</div>
+</div>
+
+<!-- BLOCKSATZ -->
+<div id="tab-blocksatz" class="tab-content">
+<div class="layout2">
+    <div class="panel">
+        <div class="section-title">Wörter</div>
+        <label>Wörter (kommagetrennt)</label>
+        <input type="text" id="bj-words" value="Der,schnelle,braune,Fuchs,springt">
+        <label>Zeilenbreite</label>
+        <input type="text" id="bj-width" value="12">
+        <label>Malus für letzte Zeile</label>
+        <input type="text" id="bj-last-malus" value="0">
+        <button class="btn" onclick="buildBlocksatz()">Berechnen</button>
+
+        <div class="section-title">Malus-Formel</div>
+        <div class="formula">
+            μ(j) = min{ μ(i) + μ(i+1,j) | i &lt; j }<br>
+            μ(0) = 0<br>
+            Zeilenmalus μ(i+1,j) = (Breite − Zeichen)²
+        </div>
+    </div>
+    <div class="panel">
+        <div class="section-title">Berechnungstabelle</div>
+        <div id="bj-table-wrap"></div>
+        <div class="section-title">Optimale Zeilenaufteilung</div>
+        <div id="bj-result" class="formula" style="display:none"></div>
+    </div>
+</div>
+</div>
+
+<script>
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['edit','blocksatz'][i] === name));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+}
+
+// ─── EDITIERDISTANZ ──────────────────────────────────────────────────────────
+let dpTable = [], dpS = '', dpT = '', dpRow = 0;
+
+function buildDP() {
+    dpS = document.getElementById('src-str').value.toUpperCase();
+    dpT = document.getElementById('tgt-str').value.toUpperCase();
+    const m = dpS.length, n = dpT.length;
+    dpTable = Array.from({length: m+1}, () => Array(n+1).fill(null));
+    // Base cases
+    for (let j = 0; j <= n; j++) dpTable[0][j] = j;
+    for (let i = 0; i <= m; i++) dpTable[i][0] = i;
+    dpRow = 1;
+    document.getElementById('result-display').style.display = 'none';
+    document.getElementById('op-list').innerHTML = '';
+    document.getElementById('cell-info').style.display = 'none';
+    renderDP(new Set(), new Set());
+}
+
+function dpStep() {
+    if (!dpS) buildDP();
+    if (dpRow > dpS.length) { dpFull(); return; }
+    for (let j = 1; j <= dpT.length; j++) {
+        const i = dpRow;
+        const delta = dpS[i-1] === dpT[j-1] ? 0 : 1;
+        dpTable[i][j] = Math.min(
+            dpTable[i-1][j] + 1,
+            dpTable[i][j-1] + 1,
+            dpTable[i-1][j-1] + delta
+        );
+    }
+    dpRow++;
+    renderDP(new Set([dpRow-1]), new Set());
+    if (dpRow > dpS.length) showResult();
+}
+
+function dpFull() {
+    if (!dpS) buildDP();
+    while (dpRow <= dpS.length) {
+        for (let j = 1; j <= dpT.length; j++) {
+            const i = dpRow;
+            const delta = dpS[i-1] === dpT[j-1] ? 0 : 1;
+            dpTable[i][j] = Math.min(
+                dpTable[i-1][j] + 1,
+                dpTable[i][j-1] + 1,
+                dpTable[i-1][j-1] + delta
+            );
+        }
+        dpRow++;
+    }
+    renderDP(new Set(), new Set());
+    showResult();
+}
+
+function showResult() {
+    const m = dpS.length, n = dpT.length;
+    const d = dpTable[m][n];
+    const rd = document.getElementById('result-display');
+    rd.style.display = '';
+    rd.textContent = `D("${dpS}", "${dpT}") = ${d}`;
+}
+
+function dpBacktrack() {
+    if (dpRow <= dpS.length) dpFull();
+    const m = dpS.length, n = dpT.length;
+    const path = new Set();
+    const ops = [];
+    let i = m, j = n;
+    while (i > 0 || j > 0) {
+        path.add(`${i},${j}`);
+        if (i === 0) { ops.unshift({type:'insert',msg:`Einfügen '${dpT[j-1]}'`}); j--; }
+        else if (j === 0) { ops.unshift({type:'delete',msg:`Löschen '${dpS[i-1]}'`}); i--; }
+        else {
+            const delta = dpS[i-1] === dpT[j-1] ? 0 : 1;
+            const fromDiag = dpTable[i-1][j-1] + delta;
+            const fromUp = dpTable[i-1][j] + 1;
+            const fromLeft = dpTable[i][j-1] + 1;
+            const minVal = Math.min(fromDiag, fromUp, fromLeft);
+            if (fromDiag === minVal) {
+                if (delta === 0) ops.unshift({type:'match',msg:`Übereinstimmung '${dpS[i-1]}'`});
+                else ops.unshift({type:'replace',msg:`Ersetzen '${dpS[i-1]}' → '${dpT[j-1]}'`});
+                i--; j--;
+            } else if (fromUp === minVal) {
+                ops.unshift({type:'delete',msg:`Löschen '${dpS[i-1]}'`});
+                i--;
+            } else {
+                ops.unshift({type:'insert',msg:`Einfügen '${dpT[j-1]}'`});
+                j--;
+            }
+        }
+    }
+    path.add('0,0');
+    renderDP(new Set(), path);
+    const ol = document.getElementById('op-list');
+    ol.innerHTML = ops.map(o => `<div class="op-item ${o.type}">${o.msg}</div>`).join('');
+}
+
+function renderDP(activeRows, pathSet) {
+    const m = dpS.length, n = dpT.length;
+    let html = '<table class="dp"><tr><th></th><th>""</th>';
+    for (let j = 0; j < n; j++) html += `<th>${dpT[j]}</th>`;
+    html += '</tr>';
+
+    for (let i = 0; i <= m; i++) {
+        html += `<tr><th>${i === 0 ? '""' : dpS[i-1]}</th>`;
+        for (let j = 0; j <= n; j++) {
+            const val = dpTable[i][j];
+            const inPath = pathSet.has(`${i},${j}`);
+            const isActive = activeRows.has(i) && i > 0;
+            const isBase = i === 0 || j === 0;
+            const isMatch = i > 0 && j > 0 && dpS[i-1] === dpT[j-1];
+            let cls = inPath ? 'path' : isActive ? 'active' : isBase ? 'base' : val !== null ? (isMatch ? 'match' : 'filled') : '';
+            html += `<td class="${cls}" onclick="showCellInfo(${i},${j})">${val !== null ? val : ''}</td>`;
+        }
+        html += '</tr>';
+    }
+    html += '</table>';
+    document.getElementById('dp-table-wrap').innerHTML = html;
+}
+
+function showCellInfo(i, j) {
+    if (!dpS) return;
+    const box = document.getElementById('cell-info');
+    if (i === 0 || j === 0) {
+        box.style.display = '';
+        box.textContent = `D(${i},${j}) = ${dpTable[i][j]} (Basisfall)`;
+        return;
+    }
+    const delta = dpS[i-1] === dpT[j-1] ? 0 : 1;
+    const fromDiag = dpTable[i-1][j-1];
+    const fromUp = dpTable[i-1][j];
+    const fromLeft = dpTable[i][j-1];
+    const val = dpTable[i][j];
+    if (val === null) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    box.textContent = `D(${i},${j}):\n  von oben: D(${i-1},${j})+1 = ${fromUp}+1 = ${fromUp+1}\n  von links: D(${i},${j-1})+1 = ${fromLeft}+1 = ${fromLeft+1}\n  diagonal: D(${i-1},${j-1})+${delta} = ${fromDiag}+${delta} = ${fromDiag+delta}\n→ min = ${val}  (${dpS[i-1]}${'≡'[0]}${dpT[j-1]} ? δ=${delta})`;
+}
+
+// ─── BLOCKSATZ ───────────────────────────────────────────────────────────────
+function buildBlocksatz() {
+    const words = document.getElementById('bj-words').value.split(',').map(s => s.trim()).filter(Boolean);
+    const W = parseInt(document.getElementById('bj-width').value) || 12;
+    const lastMalus = parseInt(document.getElementById('bj-last-malus').value) || 0;
+    const n = words.length;
+
+    // Compute line maluses μ(i+1, j) = cost of putting words[i..j-1] on one line
+    const lineMalus = Array.from({length: n+1}, () => Array(n+1).fill(Infinity));
+    for (let i = 0; i < n; i++) {
+        let len = 0;
+        for (let j = i; j < n; j++) {
+            len += words[j].length + (j > i ? 1 : 0); // +1 for space
+            if (len <= W) {
+                const slack = W - len;
+                lineMalus[i+1][j+1] = slack * slack;
+            }
+        }
+    }
+
+    // DP: mu[j] = min total malus for words[0..j-1]
+    const mu = Array(n+1).fill(Infinity);
+    const pi = Array(n+1).fill(-1);
+    mu[0] = 0;
+    for (let j = 1; j <= n; j++) {
+        for (let i = 0; i < j; i++) {
+            if (lineMalus[i+1][j] === Infinity) continue;
+            const isLast = j === n;
+            const m = isLast ? lastMalus : lineMalus[i+1][j];
+            if (mu[i] + m < mu[j]) {
+                mu[j] = mu[i] + m;
+                pi[j] = i;
+            }
+        }
+    }
+
+    // Backtrack
+    const breaks = [];
+    let j = n;
+    while (j > 0) { breaks.unshift(pi[j]); j = pi[j]; }
+    const lines = [];
+    for (let k = 0; k < breaks.length; k++) {
+        const from = breaks[k], to = k+1 < breaks.length ? breaks[k+1] : n;
+        lines.push(words.slice(from, to).join(' '));
+    }
+
+    // Render table
+    let html = '<table class="bj-table"><tr><th>j</th><th>Wort j</th><th>μ(j)</th><th>best i</th><th>μ(i)+malus</th></tr>';
+    for (let j = 1; j <= n; j++) {
+        html += `<tr><td>${j}</td><td>${words[j-1]}</td>`;
+        html += `<td class="${mu[j]<Infinity?'best':''}">${mu[j]===Infinity?'∞':mu[j]}</td>`;
+        html += `<td>${pi[j]>=0?pi[j]:'-'}</td>`;
+        html += `<td>${pi[j]>=0?`μ(${pi[j]})=${mu[pi[j]]}+${mu[j]-mu[pi[j]]}`:'-'}</td>`;
+        html += '</tr>';
+    }
+    html += '</table>';
+    document.getElementById('bj-table-wrap').innerHTML = html;
+
+    const rd = document.getElementById('bj-result');
+    rd.style.display = '';
+    rd.textContent = `Optimale Zeilenumbrüche (Gesamtmalus=${mu[n]}):\n` +
+        lines.map((l,i) => `Zeile ${i+1}: "${l}"`).join('\n');
+}
+</script>
+</body>
+</html>

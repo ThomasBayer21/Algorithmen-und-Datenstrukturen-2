@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADS 2 — Interaktive Visualisierungen</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #e8e4f0 0%, #d4d0e4 100%);
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 2.2em;
+            font-weight: 600;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.05em;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .categories-grid {
+            display: grid;
+            gap: 18px;
+        }
+        .category-card {
+            background: #fafafa;
+            padding: 24px 28px;
+            border-radius: 8px;
+            border-left: 5px solid #3498db;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .category-card:hover {
+            transform: translateX(6px);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.13);
+        }
+        .category-card.hash    { border-left-color: #e67e22; }
+        .category-card.heap    { border-left-color: #9b59b6; }
+        .category-card.greedy  { border-left-color: #27ae60; }
+        .category-card.graph   { border-left-color: #2980b9; }
+        .category-card.dp      { border-left-color: #c0392b; }
+
+        .chapter-num {
+            font-size: 0.75em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+        .category-card h2 {
+            font-size: 1.25em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 8px;
+        }
+        .category-card p {
+            color: #666;
+            line-height: 1.6;
+            font-size: 0.92em;
+            margin: 0;
+        }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .tag {
+            background: #eef0f3;
+            color: #555;
+            font-size: 0.78em;
+            padding: 2px 9px;
+            border-radius: 99px;
+            font-weight: 500;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 32px;
+            color: #aaa;
+            font-size: 0.85em;
+        }
+        .abschrift-link {
+            display: block;
+            text-align: center;
+            margin-top: 28px;
+            padding: 12px 24px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #555;
+            font-size: 0.9em;
+            border: 1px solid #ddd;
+            transition: background 0.2s;
+        }
+        .abschrift-link:hover { background: #eaeaea; }
+    </style>
+</head>
+<body>
+    <h1>Algorithmen &amp; Datenstrukturen 2</h1>
+    <div class="subtitle">Interaktive Visualisierungen</div>
+
+    <div class="container">
+        <div class="categories-grid">
+
+            <a class="category-card hash" href="hash-visualisierung/index.html">
+                <div class="chapter-num">Kapitel 1</div>
+                <h2>Hashfunktionen &amp; Streuwerttabellen</h2>
+                <p>Schlüssel interaktiv einfügen, Kollisionsbehandlung vergleichen und Ladefaktor beobachten.</p>
+                <div class="tags">
+                    <span class="tag">Verkettung</span>
+                    <span class="tag">Lineare Sondierung</span>
+                    <span class="tag">Quadratische Sondierung</span>
+                    <span class="tag">Doppeltes Hashing</span>
+                </div>
+            </a>
+
+            <a class="category-card heap" href="binomial-heap-visualisierung/index.html">
+                <div class="chapter-num">Kapitel 2</div>
+                <h2>Vorrangwarteschlangen — Binomial-Halden</h2>
+                <p>Schritt-für-Schritt Visualisierung von insert, extractMin, merge und changePrio auf einer Min-Binomial-Halde.</p>
+                <div class="tags">
+                    <span class="tag">insert</span>
+                    <span class="tag">extractMin</span>
+                    <span class="tag">merge</span>
+                    <span class="tag">changePrio</span>
+                </div>
+            </a>
+
+            <a class="category-card greedy" href="greedy-visualisierung/index.html">
+                <div class="chapter-num">Kapitel 3</div>
+                <h2>Greedy-Algorithmen</h2>
+                <p>Huffman-Baum aus eigenen Häufigkeiten aufbauen und Gale-Shapley mit eigenen Präferenzlisten simulieren.</p>
+                <div class="tags">
+                    <span class="tag">Huffman-Kodierung</span>
+                    <span class="tag">Gale-Shapley</span>
+                    <span class="tag">Stabiles Heiraten</span>
+                </div>
+            </a>
+
+            <a class="category-card graph" href="graph-visualisierung/index.html">
+                <div class="chapter-num">Kapitel 4</div>
+                <h2>Graphenalgorithmen</h2>
+                <p>Graphen zeichnen und BFS, DFS, Kruskal, Prim, Dijkstra, Bellman-Ford sowie Floyd-Warshall schrittweise ausführen.</p>
+                <div class="tags">
+                    <span class="tag">BFS / DFS</span>
+                    <span class="tag">Kruskal</span>
+                    <span class="tag">Prim</span>
+                    <span class="tag">Dijkstra</span>
+                    <span class="tag">Bellman-Ford</span>
+                    <span class="tag">Floyd-Warshall</span>
+                </div>
+            </a>
+
+            <a class="category-card dp" href="dp-visualisierung/index.html">
+                <div class="chapter-num">Kapitel 5</div>
+                <h2>Tabellengestützte Programmierung — Editierdistanz</h2>
+                <p>Eigene Zeichenketten eingeben, die DP-Tabelle zeilenweise befüllen und den optimalen Bearbeitungspfad zurückverfolgen.</p>
+                <div class="tags">
+                    <span class="tag">Editierdistanz</span>
+                    <span class="tag">Backtracking</span>
+                    <span class="tag">Blocksatz-DP</span>
+                </div>
+            </a>
+
+        </div>
+
+    </div>
+</body>
+</html>

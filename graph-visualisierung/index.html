@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graphenalgorithmen</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #eef4fb; margin: 0; padding: 20px; }
+.back-link { display: inline-block; margin-bottom: 16px; color: #2980b9; text-decoration: none; font-size: 0.9em; }
+.back-link:hover { text-decoration: underline; }
+h1 { color: #2c3e50; margin: 0 0 4px; font-size: 1.7em; }
+.subtitle { color: #888; font-size: 0.9em; margin-bottom: 18px; }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 20px; }
+.tab { padding: 8px 18px; background: #ddd; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.85em; color: #555; border: none; }
+.tab.active { background: white; color: #1a4c78; font-weight: 700; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.layout2 { display: grid; grid-template-columns: 290px 1fr; gap: 16px; max-width: 1100px; }
+.panel { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 4px 18px rgba(0,0,0,0.1); }
+label { display: block; font-size: 0.82em; font-weight: 600; color: #555; margin: 9px 0 3px; }
+input[type=text], input[type=number], textarea, select {
+    width: 100%; padding: 7px 9px; border: 1.5px solid #ddd; border-radius: 6px; font-size: 0.88em; outline: none;
+}
+input:focus, textarea:focus, select:focus { border-color: #2980b9; }
+.btn { display: block; width: 100%; padding: 8px; background: #2980b9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.88em; margin-top: 8px; }
+.btn:hover { background: #1a5276; }
+.btn.green { background: #27ae60; }
+.btn.green:hover { background: #1e8449; }
+.btn.neutral { background: #7f8c8d; }
+.section-title { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.07em; color: #bbb; font-weight: 700; margin: 14px 0 7px; border-top: 1px solid #f0f0f0; padding-top: 12px; }
+canvas { border: 1px solid #d5e8f5; border-radius: 8px; background: #fafcff; display: block; }
+.log { max-height: 220px; overflow-y: auto; margin-top: 8px; }
+.log-entry { font-size: 0.8em; padding: 4px 8px; border-left: 3px solid #2980b9; background: #f0f7fd; margin-bottom: 4px; border-radius: 0 4px 4px 0; }
+.log-entry.highlight { border-left-color: #27ae60; background: #f0faf4; }
+.log-entry.warn { border-left-color: #e74c3c; background: #fdf0f0; }
+.distance-table { width: 100%; border-collapse: collapse; font-size: 0.8em; margin-top: 8px; }
+.distance-table th { background: #dce8f5; padding: 4px 8px; border: 1px solid #c0d8ee; }
+.distance-table td { padding: 4px 8px; border: 1px solid #d5e8f5; text-align: center; }
+.distance-table td.active { background: #fff3b0; font-weight: 700; }
+.distance-table td.settled { background: #d4edda; font-weight: 700; }
+.distance-table td.path { background: #bbf7d0; font-weight: 700; }
+.fw-matrix { border-collapse: collapse; font-size: 0.78em; }
+.fw-matrix th { background: #dce8f5; padding: 4px 7px; border: 1px solid #c0d8ee; }
+.fw-matrix td { padding: 4px 7px; border: 1px solid #d5e8f5; text-align: center; min-width: 30px; }
+.fw-matrix td.diag { background: #dbeafe; }
+.fw-matrix td.updated { background: #bbf7d0; font-weight: 700; }
+</style>
+</head>
+<body>
+<a class="back-link" href="../index.html">← Zurück zur Übersicht</a>
+<h1>Graphenalgorithmen</h1>
+<div class="subtitle">Kapitel 4 · BFS / DFS / MST / Kürzeste Wege</div>
+
+<div style="max-width:1100px;margin:0 auto 16px;background:white;border-radius:12px;padding:16px 22px;box-shadow:0 4px 18px rgba(0,0,0,0.08);font-size:0.88em;line-height:1.7;color:#444">
+    <b>BFS</b> (Breitensuche) erkundet den Graphen ebenenweise mit einer FIFO-Queue und findet die kürzesten Wege in ungewichteten Graphen – O(V+E).<br>
+    <b>DFS</b> (Tiefensuche) folgt einem Pfad so weit wie möglich bevor es zurückspringt; liefert λ/φ-Zeitstempel und klassifiziert Kanten (Tree, Backward, Forward, Cross) – O(V+E).<br>
+    <b>Kruskal &amp; Prim</b> berechnen den minimalen Spannbaum (MST) eines gewichteten Graphen – O(E log V).<br>
+    <b>Dijkstra</b> findet kürzeste Wege ohne negative Gewichte – O((V+E) log V). <b>Bellman-Ford</b> unterstützt negative Gewichte und erkennt negative Zyklen – O(V·E). <b>Floyd-Warshall</b> berechnet alle Paare kürzester Wege – O(V³).
+</div>
+<div class="tabs">
+    <button class="tab active" onclick="switchTab('bfsdfs')">BFS &amp; DFS</button>
+    <button class="tab" onclick="switchTab('mst')">MST (Kruskal &amp; Prim)</button>
+    <button class="tab" onclick="switchTab('dijkstra')">Dijkstra &amp; Bellman-Ford</button>
+    <button class="tab" onclick="switchTab('floyd')">Floyd-Warshall</button>
+</div>
+
+<!-- BFS/DFS TAB -->
+<div id="tab-bfsdfs" class="tab-content active">
+<div class="layout2">
+    <div class="panel">
+        <div class="section-title">Graph definieren</div>
+        <label>Kanten (eine pro Zeile: A B oder A B 1)</label>
+        <textarea id="bfsdfs-edges" rows="7" style="font-family:monospace">A B
+A C
+B D
+C B
+D A
+A E</textarea>
+        <label>Startknoten</label>
+        <input type="text" id="bfsdfs-start" value="A">
+        <label>Gerichtet?</label>
+        <select id="bfsdfs-directed">
+            <option value="1">Gerichtet</option>
+            <option value="0">Ungerichtet</option>
+        </select>
+        <button class="btn green" onclick="graphBuild('bfsdfs')">Graph aufbauen</button>
+        <div class="section-title">Algorithmus</div>
+        <button class="btn" onclick="startBFS()">BFS starten</button>
+        <button class="btn" onclick="startDFS()">DFS starten</button>
+        <button class="btn neutral" onclick="algoStep()">Einen Schritt</button>
+        <button class="btn neutral" onclick="algoRun()">Vollständig</button>
+        <div class="section-title">Legende</div>
+        <div style="font-size:0.78em;line-height:2">
+            <span style="background:#fff;border:2px solid #999;border-radius:50%;padding:1px 6px">Weiß</span> = unentdeckt &nbsp;
+            <span style="background:#f39c12;color:white;border-radius:50%;padding:1px 6px">Orange</span> = aktiv &nbsp;
+            <span style="background:#27ae60;color:white;border-radius:50%;padding:1px 6px">Grün</span> = fertig
+        </div>
+    </div>
+    <div class="panel">
+        <canvas id="bfsdfs-canvas" width="700" height="320"></canvas>
+        <div class="section-title">Protokoll</div>
+        <div class="log" id="bfsdfs-log"></div>
+    </div>
+</div>
+</div>
+
+<!-- MST TAB -->
+<div id="tab-mst" class="tab-content">
+<div class="layout2">
+    <div class="panel">
+        <div class="section-title">Graph definieren (ungerichtet, gewichtet)</div>
+        <label>Kanten: A B Gewicht</label>
+        <textarea id="mst-edges" rows="7" style="font-family:monospace">A B 1
+C D 2
+A C 3
+B C 4
+A D 5</textarea>
+        <label>Startknoten (für Prim)</label>
+        <input type="text" id="mst-start" value="A">
+        <button class="btn green" onclick="graphBuildMST()">Graph aufbauen</button>
+        <div class="section-title">Algorithmus</div>
+        <button class="btn" onclick="startKruskal()">Kruskal starten</button>
+        <button class="btn" onclick="startPrim()">Prim starten</button>
+        <button class="btn neutral" onclick="mstStep()">Einen Schritt</button>
+        <button class="btn neutral" onclick="mstRun()">Vollständig</button>
+    </div>
+    <div class="panel">
+        <canvas id="mst-canvas" width="700" height="280"></canvas>
+        <div class="section-title">Schritte</div>
+        <div class="log" id="mst-log"></div>
+    </div>
+</div>
+</div>
+
+<!-- DIJKSTRA TAB -->
+<div id="tab-dijkstra" class="tab-content">
+<div class="layout2">
+    <div class="panel">
+        <div class="section-title">Graph (gerichtet, gewichtet)</div>
+        <label>Kanten: A B Gewicht</label>
+        <textarea id="dijk-edges" rows="7" style="font-family:monospace">A B 4
+A C 2
+C B 1
+B D 3
+C D 5</textarea>
+        <label>Startknoten</label>
+        <input type="text" id="dijk-start" value="A">
+        <button class="btn green" onclick="graphBuildDijk()">Graph aufbauen</button>
+        <div class="section-title">Algorithmus</div>
+        <button class="btn" onclick="startDijkstra()">Dijkstra</button>
+        <button class="btn" onclick="startBellmanFord()">Bellman-Ford</button>
+        <button class="btn neutral" onclick="dijkStep()">Einen Schritt</button>
+        <button class="btn neutral" onclick="dijkRun()">Vollständig</button>
+    </div>
+    <div class="panel">
+        <canvas id="dijk-canvas" width="700" height="240"></canvas>
+        <div class="section-title">Distanztabelle</div>
+        <div id="dijk-table-wrap"></div>
+        <div class="section-title">Protokoll</div>
+        <div class="log" id="dijk-log"></div>
+    </div>
+</div>
+</div>
+
+<!-- FLOYD TAB -->
+<div id="tab-floyd" class="tab-content">
+<div class="layout2">
+    <div class="panel">
+        <div class="section-title">Graph (gerichtet, gewichtet)</div>
+        <label>Kanten: A B Gewicht</label>
+        <textarea id="floyd-edges" rows="6" style="font-family:monospace">1 2 3
+1 3 8
+2 3 2</textarea>
+        <button class="btn green" onclick="buildFloyd()">Initialisieren</button>
+        <button class="btn neutral" onclick="floydStep()">Nächste k-Iteration</button>
+        <button class="btn neutral" onclick="floydRun()">Vollständig</button>
+        <div class="section-title">Protokoll</div>
+        <div class="log" id="floyd-log"></div>
+    </div>
+    <div class="panel">
+        <div class="section-title">Distanzmatrix Δ</div>
+        <div id="floyd-matrix"></div>
+        <div class="section-title">Vorgängermatrix Π</div>
+        <div id="floyd-pi-matrix" style="margin-top:8px"></div>
+    </div>
+</div>
+</div>
+
+<script>
+// ─── Tab switching ──────────────────────────────────────────────────────────
+const TABS = ['bfsdfs','mst','dijkstra','floyd'];
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', TABS[i] === name));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ─── Graph utilities ─────────────────────────────────────────────────────────
+function parseEdges(text, directed, weighted) {
+    const nodes = new Set();
+    const edges = [];
+    text.trim().split('\n').forEach(line => {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length < 2) return;
+        const [u, v, w] = parts;
+        const weight = weighted ? parseFloat(w || 1) : 1;
+        nodes.add(u); nodes.add(v);
+        edges.push({ u, v, w: weight });
+        if (!directed) edges.push({ u: v, v: u, w: weight });
+    });
+    return { nodes: [...nodes].sort(), edges };
+}
+
+function layoutNodes(nodes, W, H) {
+    const pos = {};
+    const n = nodes.length;
+    nodes.forEach((node, i) => {
+        const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+        pos[node] = {
+            x: W / 2 + (W * 0.38) * Math.cos(angle),
+            y: H / 2 + (H * 0.38) * Math.sin(angle)
+        };
+    });
+    return pos;
+}
+
+function drawGraph(canvas, nodes, edges, pos, nodeColors, edgeColors, labels, directed) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const R = 20;
+
+    // Edges
+    edges.forEach((e, i) => {
+        if (!directed && e.u > e.v) return; // Draw undirected once
+        const p1 = pos[e.u], p2 = pos[e.v];
+        if (!p1 || !p2) return;
+        const color = (edgeColors && edgeColors[i]) || '#bbb';
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = edgeColors && edgeColors[i] && edgeColors[i] !== '#bbb' ? 3 : 1.5;
+        // Offset for directed to avoid overlap
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const ux = dx/len, uy = dy/len;
+        const ox = -uy * 4, oy = ux * 4;
+        ctx.moveTo(p1.x + ox, p1.y + oy);
+        ctx.lineTo(p2.x + ox, p2.y + oy);
+        ctx.stroke();
+
+        // Arrowhead for directed
+        if (directed) {
+            const ax = p2.x + ox - ux * R, ay = p2.y + oy - uy * R;
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(ax - ux*10 - uy*5, ay - uy*10 + ux*5);
+            ctx.lineTo(ax - ux*10 + uy*5, ay - uy*10 - ux*5);
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        // Edge weight label
+        if (e.w !== 1 || true) {
+            const mx = (p1.x + p2.x) / 2 - uy*12 + ox, my = (p1.y + p2.y) / 2 + ux*12 + oy;
+            ctx.fillStyle = '#666';
+            ctx.font = '11px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(e.w, mx, my);
+        }
+    });
+
+    // Nodes
+    nodes.forEach(n => {
+        const p = pos[n];
+        if (!p) return;
+        const col = (nodeColors && nodeColors[n]) || '#fff';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, R, 0, 2*Math.PI);
+        ctx.fillStyle = col;
+        ctx.fill();
+        ctx.strokeStyle = '#2980b9';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const label = (labels && labels[n] !== undefined) ? `${n}(${labels[n]})` : n;
+        ctx.fillStyle = col === '#fff' || col === '#ecf0f1' ? '#2c3e50' : 'white';
+        ctx.font = 'bold 11px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, p.x, p.y);
+        ctx.textBaseline = 'alphabetic';
+    });
+}
+
+// ─── BFS / DFS ───────────────────────────────────────────────────────────────
+let bfsdfsG = null, bfsdfsQueue = [], bfsdfsVisited = {}, bfsdfsColors = {}, bfsdfsNodeColors = {}, bfsdfsParent = {}, bfsdfsAlgo = null, bfsdfsStack = [];
+let bfsdfsLambda = {}, bfdsfPhi = {}, bfsdfsT = 0;
+
+function graphBuild() {
+    const directed = document.getElementById('bfsdfs-directed').value === '1';
+    bfsdfsG = parseEdges(document.getElementById('bfsdfs-edges').value, directed, false);
+    bfsdfsG.pos = layoutNodes(bfsdfsG.nodes, 700, 320);
+    bfsdfsG.directed = directed;
+    bfsdfsNodeColors = {};
+    document.getElementById('bfsdfs-log').innerHTML = '';
+    drawGraph(document.getElementById('bfsdfs-canvas'), bfsdfsG.nodes, bfsdfsG.edges, bfsdfsG.pos, bfsdfsNodeColors, null, null, directed);
+    bfsLog('Graph aufgebaut. BFS oder DFS wählen.', '');
+}
+
+function startBFS() {
+    if (!bfsdfsG) graphBuild();
+    bfsdfsAlgo = 'bfs';
+    const s = document.getElementById('bfsdfs-start').value.trim();
+    bfsdfsQueue = [s];
+    bfsdfsVisited = { [s]: true };
+    bfsdfsNodeColors = Object.fromEntries(bfsdfsG.nodes.map(n => [n, '#ecf0f1']));
+    bfsdfsNodeColors[s] = '#f39c12';
+    bfsdfsParent = { [s]: null };
+    bfsdfsG.dist = { [s]: 0 };
+    drawBFSDFS();
+    bfsLog(`BFS gestartet von ${s}`, 'highlight');
+}
+
+function startDFS() {
+    if (!bfsdfsG) graphBuild();
+    bfsdfsAlgo = 'dfs';
+    bfsdfsLambda = {}; bfdsfPhi = {}; bfsdfsT = 1;
+    bfsdfsNodeColors = Object.fromEntries(bfsdfsG.nodes.map(n => [n, '#ecf0f1']));
+    bfsdfsStack = [];
+    // Build adjacency
+    bfsdfsG.adj = {};
+    bfsdfsG.nodes.forEach(n => bfsdfsG.adj[n] = []);
+    bfsdfsG.edges.forEach(e => { if (!bfsdfsG.adj[e.u]) bfsdfsG.adj[e.u] = []; bfsdfsG.adj[e.u].push(e.v); });
+    bfsdfsG.dfsOrder = [...bfsdfsG.nodes];
+    bfsdfsG.dfsOrderIdx = 0;
+    bfsdfsG.dfsChildIdx = {};
+    bfsdfsG.nodes.forEach(n => bfsdfsG.dfsChildIdx[n] = 0);
+    drawBFSDFS();
+    bfsLog('DFS gestartet. "Einen Schritt" drücken.', 'highlight');
+}
+
+function algoStep() {
+    if (bfsdfsAlgo === 'bfs') bfsStep();
+    else if (bfsdfsAlgo === 'dfs') dfsStep();
+}
+function algoRun() {
+    let i = 0;
+    const interval = setInterval(() => {
+        algoStep();
+        i++;
+        if (i > 200) clearInterval(interval);
+    }, 300);
+}
+
+function bfsStep() {
+    if (!bfsdfsQueue.length) {
+        bfsLog('BFS fertig.', 'highlight');
+        return;
+    }
+    const u = bfsdfsQueue.shift();
+    bfsdfsNodeColors[u] = '#f39c12';
+    bfsLog(`Verarbeite ${u} (δ=${bfsdfsG.dist[u]})`, '');
+
+    const neighbors = bfsdfsG.edges.filter(e => e.u === u).map(e => e.v);
+    neighbors.forEach(v => {
+        if (!bfsdfsVisited[v]) {
+            bfsdfsVisited[v] = true;
+            bfsdfsG.dist[v] = (bfsdfsG.dist[u] || 0) + 1;
+            bfsdfsParent[v] = u;
+            bfsdfsQueue.push(v);
+            bfsdfsNodeColors[v] = '#3498db';
+            bfsLog(`  δ(${v})=${bfsdfsG.dist[v]}, π(${v})=${u}`, '');
+        }
+    });
+    bfsdfsNodeColors[u] = '#27ae60';
+    drawBFSDFS();
+}
+
+// Simple iterative DFS
+function dfsStep() {
+    const adj = bfsdfsG.adj;
+    // Find next unvisited root
+    while (bfsdfsG.dfsOrderIdx < bfsdfsG.dfsOrder.length) {
+        const v = bfsdfsG.dfsOrder[bfsdfsG.dfsOrderIdx];
+        if (bfsdfsLambda[v] === undefined) {
+            bfsdfsStack.push(v);
+            bfsdfsLambda[v] = bfsdfsT++;
+            bfsdfsNodeColors[v] = '#f39c12';
+            bfsLog(`Durchsuchen(${v}): λ(${v})=${bfsdfsLambda[v]}`, '');
+            drawBFSDFS();
+            return;
+        }
+        bfsdfsG.dfsOrderIdx++;
+    }
+    // Process stack
+    if (bfsdfsStack.length) {
+        const u = bfsdfsStack[bfsdfsStack.length - 1];
+        const children = adj[u] || [];
+        let idx = bfsdfsG.dfsChildIdx[u];
+        while (idx < children.length) {
+            const v = children[idx];
+            idx++;
+            bfsdfsG.dfsChildIdx[u] = idx;
+            if (bfsdfsLambda[v] === undefined) {
+                bfsdfsLambda[v] = bfsdfsT++;
+                bfsdfsNodeColors[v] = '#f39c12';
+                bfsdfsStack.push(v);
+                bfsLog(`  Baumkante (${u},${v}): λ(${v})=${bfsdfsLambda[v]}`, 'highlight');
+                drawBFSDFS();
+                return;
+            } else {
+                const type = bfdsfPhi[v] === undefined ? 'Backward' : (bfsdfsLambda[v] > bfsdfsLambda[u] ? 'Forward' : 'Cross');
+                bfsLog(`  Kante (${u},${v}): ${type}`, 'warn');
+            }
+        }
+        bfdsfPhi[u] = bfsdfsT++;
+        bfsdfsNodeColors[u] = '#27ae60';
+        bfsdfsStack.pop();
+        bfsLog(`φ(${u})=${bfdsfPhi[u]}`, '');
+        drawBFSDFS();
+    }
+}
+
+function drawBFSDFS() {
+    const g = bfsdfsG;
+    if (!g) return;
+    const labelMap = bfsdfsAlgo === 'dfs' ?
+        Object.fromEntries(g.nodes.map(n => [n, bfsdfsLambda[n] !== undefined ? `${bfsdfsLambda[n]}${bfdsfPhi[n] !== undefined ? '/'+bfdsfPhi[n] : ''}` : ''])) :
+        Object.fromEntries(g.nodes.map(n => [n, bfsdfsG.dist && bfsdfsG.dist[n] !== undefined ? bfsdfsG.dist[n] : '']));
+    // Build labels with node name
+    const combined = Object.fromEntries(g.nodes.map(n => [n, n + (labelMap[n] !== '' ? ':'+labelMap[n] : '')]));
+    const canvas = document.getElementById('bfsdfs-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw edges
+    g.edges.forEach(e => {
+        const p1 = g.pos[e.u], p2 = g.pos[e.v];
+        if (!p1 || !p2) return;
+        ctx.beginPath();
+        ctx.strokeStyle = '#bbb'; ctx.lineWidth = 1.5;
+        const dx = p2.x-p1.x, dy = p2.y-p1.y, len = Math.sqrt(dx*dx+dy*dy);
+        const ux = dx/len, uy = dy/len;
+        const ox = -uy*4, oy = ux*4;
+        ctx.moveTo(p1.x+ox, p1.y+oy);
+        ctx.lineTo(p2.x+ox, p2.y+oy);
+        ctx.stroke();
+        if (g.directed) {
+            const ax = p2.x+ox-ux*20, ay = p2.y+oy-uy*20;
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(ax-ux*9-uy*5, ay-uy*9+ux*5);
+            ctx.lineTo(ax-ux*9+uy*5, ay-uy*9-ux*5);
+            ctx.fillStyle = '#bbb'; ctx.fill();
+        }
+    });
+
+    // Nodes
+    g.nodes.forEach(n => {
+        const p = g.pos[n];
+        const col = bfsdfsNodeColors[n] || '#fff';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 20, 0, 2*Math.PI);
+        ctx.fillStyle = col; ctx.fill();
+        ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = ['#fff','#ecf0f1'].includes(col) ? '#2c3e50' : 'white';
+        ctx.font = 'bold 10px Segoe UI';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(combined[n], p.x, p.y);
+        ctx.textBaseline = 'alphabetic';
+    });
+}
+
+function bfsLog(msg, type) {
+    const d = document.getElementById('bfsdfs-log');
+    const e = document.createElement('div');
+    e.className = 'log-entry ' + type;
+    e.textContent = msg;
+    d.prepend(e);
+}
+
+// ─── MST ─────────────────────────────────────────────────────────────────────
+let mstG = null, mstEdgesLeft = [], mstSelected = [], mstUF = {}, mstPrimQ = {}, mstPrimVisited = {}, mstAlgo = null;
+
+function graphBuildMST() {
+    mstG = parseEdges(document.getElementById('mst-edges').value, false, true);
+    mstG.pos = layoutNodes(mstG.nodes, 700, 280);
+    mstSelected = [];
+    document.getElementById('mst-log').innerHTML = '';
+    drawMST([]);
+    mstLog('Graph aufgebaut.', '');
+}
+
+function startKruskal() {
+    if (!mstG) graphBuildMST();
+    mstAlgo = 'kruskal';
+    mstSelected = [];
+    // Unique edges (undirected: keep u < v)
+    const seen = new Set();
+    mstEdgesLeft = mstG.edges.filter(e => {
+        const key = [e.u,e.v].sort().join('-');
+        if (seen.has(key)) return false;
+        seen.add(key); return true;
+    }).sort((a,b) => a.w - b.w);
+    // Union-Find
+    mstUF = Object.fromEntries(mstG.nodes.map(n => [n, n]));
+    drawMST([]);
+    mstLog('Kruskal: Kanten nach Gewicht sortiert', 'highlight');
+    mstEdgesLeft.forEach(e => mstLog(`  {${e.u}-${e.v}}: ${e.w}`, ''));
+}
+
+function startPrim() {
+    if (!mstG) graphBuildMST();
+    mstAlgo = 'prim';
+    mstSelected = [];
+    const start = document.getElementById('mst-start').value.trim() || mstG.nodes[0];
+    mstPrimVisited = { [start]: true };
+    mstPrimQ = Object.fromEntries(mstG.nodes.filter(n => n !== start).map(n => {
+        const edge = mstG.edges.find(e => (e.u === start && e.v === n) || (e.u === n && e.v === start));
+        return [n, edge ? { w: edge.w, from: start } : { w: Infinity, from: null }];
+    }));
+    drawMST([]);
+    mstLog(`Prim gestartet von ${start}`, 'highlight');
+}
+
+function mstStep() {
+    if (mstAlgo === 'kruskal') kruskalStep();
+    else if (mstAlgo === 'prim') primStep();
+}
+function mstRun() {
+    let i = 0;
+    const interval = setInterval(() => { mstStep(); i++; if (i > 100) clearInterval(interval); }, 400);
+}
+
+function ufFind(n) {
+    if (mstUF[n] !== n) mstUF[n] = ufFind(mstUF[n]);
+    return mstUF[n];
+}
+function ufUnion(a, b) { mstUF[ufFind(a)] = ufFind(b); }
+
+function kruskalStep() {
+    if (!mstEdgesLeft.length) { mstLog('Kruskal fertig.', 'highlight'); return; }
+    const e = mstEdgesLeft.shift();
+    const ra = ufFind(e.u), rb = ufFind(e.v);
+    if (ra !== rb) {
+        ufUnion(e.u, e.v);
+        mstSelected.push(e);
+        mstLog(`Aufnehmen: {${e.u}-${e.v}} w=${e.w} ✓`, 'highlight');
+    } else {
+        mstLog(`Verwerfen: {${e.u}-${e.v}} → gleiche Komponente`, 'warn');
+    }
+    drawMST(mstSelected);
+}
+
+function primStep() {
+    const available = Object.entries(mstPrimQ).filter(([n, d]) => d.w < Infinity);
+    if (!available.length) { mstLog('Prim fertig.', 'highlight'); return; }
+    available.sort((a, b) => a[1].w - b[1].w);
+    const [bestNode, { w, from }] = available[0];
+    delete mstPrimQ[bestNode];
+    mstPrimVisited[bestNode] = true;
+    const edge = { u: from, v: bestNode, w };
+    mstSelected.push(edge);
+    mstLog(`Aufnehmen: {${from}-${bestNode}} w=${w}`, 'highlight');
+
+    // Update priorities
+    mstG.edges.forEach(e => {
+        let neighbor = null;
+        if (e.u === bestNode && mstPrimQ[e.v]) neighbor = e.v;
+        if (e.v === bestNode && mstPrimQ[e.u]) neighbor = e.u;
+        if (neighbor && e.w < mstPrimQ[neighbor].w) {
+            mstPrimQ[neighbor] = { w: e.w, from: bestNode };
+            mstLog(`  δ(${neighbor})=${e.w} via ${bestNode}`, '');
+        }
+    });
+    drawMST(mstSelected);
+}
+
+function drawMST(selected) {
+    if (!mstG) return;
+    const canvas = document.getElementById('mst-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const selSet = new Set(selected.map(e => [e.u,e.v].sort().join('-')));
+
+    // Unique edges
+    const seen = new Set();
+    mstG.edges.forEach(e => {
+        const key = [e.u,e.v].sort().join('-');
+        if (seen.has(key)) return; seen.add(key);
+        const p1 = mstG.pos[e.u], p2 = mstG.pos[e.v];
+        const inMST = selSet.has(key);
+        ctx.beginPath();
+        ctx.strokeStyle = inMST ? '#27ae60' : '#ddd';
+        ctx.lineWidth = inMST ? 3 : 1.5;
+        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        const mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
+        ctx.fillStyle = '#888'; ctx.font = '11px Segoe UI'; ctx.textAlign = 'center';
+        ctx.fillText(e.w, mx+6, my-4);
+    });
+
+    mstG.nodes.forEach(n => {
+        const p = mstG.pos[n];
+        const inTree = mstPrimVisited && mstPrimVisited[n];
+        ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, 2*Math.PI);
+        ctx.fillStyle = inTree ? '#d5f5e3' : '#fff'; ctx.fill();
+        ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 12px Segoe UI';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(n, p.x, p.y); ctx.textBaseline = 'alphabetic';
+    });
+
+    if (selected.length) {
+        const total = selected.reduce((s,e) => s+e.w, 0);
+        ctx.fillStyle = '#888'; ctx.font = '12px Segoe UI'; ctx.textAlign = 'right';
+        ctx.fillText(`MST Gewicht: ${total}`, canvas.width - 10, canvas.height - 10);
+    }
+}
+
+function mstLog(msg, type) {
+    const d = document.getElementById('mst-log');
+    const e = document.createElement('div');
+    e.className = 'log-entry ' + type;
+    e.textContent = msg;
+    d.prepend(e);
+}
+
+// ─── DIJKSTRA / BELLMAN-FORD ─────────────────────────────────────────────────
+let dijkG = null, dijkDist = {}, dijkPrev = {}, dijkSettled = new Set(), dijkQueue = [], dijkAlgo = null;
+let bfIter = 0, bfEdges = [];
+
+function graphBuildDijk() {
+    dijkG = parseEdges(document.getElementById('dijk-edges').value, true, true);
+    dijkG.pos = layoutNodes(dijkG.nodes, 700, 240);
+    document.getElementById('dijk-log').innerHTML = '';
+    document.getElementById('dijk-table-wrap').innerHTML = '';
+    drawDijk({}, new Set());
+    dijkLog('Graph aufgebaut.', '');
+}
+
+function startDijkstra() {
+    if (!dijkG) graphBuildDijk();
+    dijkAlgo = 'dijkstra';
+    const s = document.getElementById('dijk-start').value.trim();
+    dijkDist = Object.fromEntries(dijkG.nodes.map(n => [n, Infinity]));
+    dijkDist[s] = 0;
+    dijkPrev = Object.fromEntries(dijkG.nodes.map(n => [n, null]));
+    dijkSettled = new Set();
+    dijkQueue = [...dijkG.nodes];
+    renderDijkTable(s);
+    dijkLog(`Dijkstra von ${s}: alle δ=∞, δ(${s})=0`, 'highlight');
+    drawDijk(dijkDist, dijkSettled);
+}
+
+function startBellmanFord() {
+    if (!dijkG) graphBuildDijk();
+    dijkAlgo = 'bf';
+    const s = document.getElementById('dijk-start').value.trim();
+    dijkDist = Object.fromEntries(dijkG.nodes.map(n => [n, Infinity]));
+    dijkDist[s] = 0;
+    dijkPrev = Object.fromEntries(dijkG.nodes.map(n => [n, null]));
+    dijkSettled = new Set();
+    bfIter = 0;
+    bfEdges = [...dijkG.edges];
+    renderDijkTable(s);
+    dijkLog(`Bellman-Ford von ${s}: V-1=${dijkG.nodes.length-1} Iterationen`, 'highlight');
+}
+
+function dijkStep() {
+    if (dijkAlgo === 'dijkstra') dijkstraStep();
+    else if (dijkAlgo === 'bf') bellmanFordStep();
+}
+function dijkRun() {
+    let i = 0;
+    const interval = setInterval(() => { dijkStep(); i++; if (i > 300) clearInterval(interval); }, 400);
+}
+
+function dijkstraStep() {
+    const remaining = dijkQueue.filter(n => !dijkSettled.has(n) && dijkDist[n] < Infinity);
+    if (!remaining.length) { dijkLog('Dijkstra fertig.', 'highlight'); return; }
+    const u = remaining.reduce((best, n) => dijkDist[n] < dijkDist[best] ? n : best, remaining[0]);
+    dijkQueue.splice(dijkQueue.indexOf(u), 1);
+    dijkSettled.add(u);
+    dijkLog(`Entnehme ${u} (δ=${dijkDist[u]})`, 'highlight');
+
+    dijkG.edges.filter(e => e.u === u && !dijkSettled.has(e.v)).forEach(e => {
+        const newD = dijkDist[u] + e.w;
+        if (newD < dijkDist[e.v]) {
+            dijkDist[e.v] = newD;
+            dijkPrev[e.v] = u;
+            dijkLog(`  Verwerten: δ(${e.v})=${newD} via ${u}`, '');
+        }
+    });
+    renderDijkTable();
+    drawDijk(dijkDist, dijkSettled);
+}
+
+function bellmanFordStep() {
+    if (bfIter >= dijkG.nodes.length - 1) {
+        // Check negative cycles
+        let negCycle = false;
+        dijkG.edges.forEach(e => {
+            if (dijkDist[e.u] + e.w < dijkDist[e.v]) negCycle = true;
+        });
+        if (negCycle) dijkLog('⚠ Negativer Zyklus erkannt!', 'warn');
+        else dijkLog('Bellman-Ford fertig. Kein negativer Zyklus.', 'highlight');
+        return;
+    }
+    bfIter++;
+    dijkLog(`Iteration ${bfIter}/${dijkG.nodes.length-1}`, 'highlight');
+    dijkG.edges.forEach(e => {
+        if (dijkDist[e.u] + e.w < dijkDist[e.v]) {
+            dijkDist[e.v] = dijkDist[e.u] + e.w;
+            dijkPrev[e.v] = e.u;
+            dijkLog(`  Verwerten (${e.u},${e.v}): δ(${e.v})=${dijkDist[e.v]}`, '');
+        }
+    });
+    renderDijkTable();
+    drawDijk(dijkDist, dijkSettled);
+}
+
+function renderDijkTable() {
+    if (!dijkG) return;
+    let html = `<table class="distance-table"><tr><th>Knoten</th>`;
+    dijkG.nodes.forEach(n => html += `<th>${n}</th>`);
+    html += '</tr><tr><td>δ</td>';
+    dijkG.nodes.forEach(n => {
+        const cls = dijkSettled.has(n) ? 'settled' : (dijkDist[n] < Infinity ? 'active' : '');
+        const v = dijkDist[n] === Infinity ? '∞' : dijkDist[n];
+        html += `<td class="${cls}">${v}</td>`;
+    });
+    html += '</tr><tr><td>π</td>';
+    dijkG.nodes.forEach(n => html += `<td>${dijkPrev[n] || '⊥'}</td>`);
+    html += '</tr></table>';
+    document.getElementById('dijk-table-wrap').innerHTML = html;
+}
+
+function drawDijk(dist, settled) {
+    if (!dijkG) return;
+    const canvas = document.getElementById('dijk-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    dijkG.edges.forEach(e => {
+        const p1 = dijkG.pos[e.u], p2 = dijkG.pos[e.v];
+        ctx.beginPath(); ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1.5;
+        const dx=p2.x-p1.x,dy=p2.y-p1.y,len=Math.sqrt(dx*dx+dy*dy);
+        const ux=dx/len,uy=dy/len,ox=-uy*4,oy=ux*4;
+        ctx.moveTo(p1.x+ox,p1.y+oy); ctx.lineTo(p2.x+ox,p2.y+oy); ctx.stroke();
+        const ax=p2.x+ox-ux*20,ay=p2.y+oy-uy*20;
+        ctx.beginPath(); ctx.moveTo(ax,ay);
+        ctx.lineTo(ax-ux*9-uy*5,ay-uy*9+ux*5); ctx.lineTo(ax-ux*9+uy*5,ay-uy*9-ux*5);
+        ctx.fillStyle='#ddd'; ctx.fill();
+        const mx=(p1.x+p2.x)/2+ox,my=(p1.y+p2.y)/2+oy;
+        ctx.fillStyle='#888'; ctx.font='10px Segoe UI'; ctx.textAlign='center';
+        ctx.fillText(e.w,mx,my-4);
+    });
+
+    dijkG.nodes.forEach(n => {
+        const p = dijkG.pos[n];
+        const col = settled.has(n) ? '#27ae60' : (dist[n] < Infinity ? '#3498db' : '#fff');
+        ctx.beginPath(); ctx.arc(p.x,p.y,20,0,2*Math.PI);
+        ctx.fillStyle=col; ctx.fill();
+        ctx.strokeStyle='#2980b9'; ctx.lineWidth=2; ctx.stroke();
+        const d = dist[n] === undefined || dist[n] === Infinity ? '∞' : dist[n];
+        ctx.fillStyle=['#fff'].includes(col)?'#2c3e50':'white';
+        ctx.font='bold 10px Segoe UI'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(`${n}:${d}`,p.x,p.y); ctx.textBaseline='alphabetic';
+    });
+}
+
+function dijkLog(msg, type) {
+    const d = document.getElementById('dijk-log');
+    const e = document.createElement('div');
+    e.className = 'log-entry ' + type;
+    e.textContent = msg;
+    d.prepend(e);
+}
+
+// ─── FLOYD-WARSHALL ──────────────────────────────────────────────────────────
+let fwNodes = [], fwDelta = [], fwPi = [], fwK = 0;
+
+function buildFloyd() {
+    const text = document.getElementById('floyd-edges').value;
+    const nodeSet = new Set();
+    const rawEdges = [];
+    text.trim().split('\n').forEach(line => {
+        const [u,v,w] = line.trim().split(/\s+/);
+        if (!u||!v) return;
+        nodeSet.add(u); nodeSet.add(v);
+        rawEdges.push({u,v,w:parseFloat(w)});
+    });
+    fwNodes = [...nodeSet].sort();
+    const n = fwNodes.length;
+    const INF = Infinity;
+    fwDelta = Array.from({length:n},(_,i) => Array.from({length:n},(_,j)=>i===j?0:INF));
+    fwPi = Array.from({length:n},()=>Array(n).fill(null));
+    rawEdges.forEach(({u,v,w}) => {
+        const ui=fwNodes.indexOf(u),vi=fwNodes.indexOf(v);
+        fwDelta[ui][vi]=w; fwPi[ui][vi]=u;
+    });
+    fwK = 0;
+    document.getElementById('floyd-log').innerHTML = '';
+    renderFW(false);
+    fwLog('Floyd-Warshall initialisiert (k=0)', 'highlight');
+}
+
+function floydStep() {
+    if (fwK >= fwNodes.length) { fwLog('Floyd-Warshall fertig.', 'highlight'); return; }
+    const k = fwK; fwK++;
+    const n = fwNodes.length;
+    const updated = [];
+    for (let u=0;u<n;u++) for (let v=0;v<n;v++) {
+        if (fwDelta[u][k]+fwDelta[k][v] < fwDelta[u][v]) {
+            fwDelta[u][v]=fwDelta[u][k]+fwDelta[k][v];
+            fwPi[u][v]=fwPi[k][v];
+            updated.push(`Δ(${fwNodes[u]},${fwNodes[v]})=${fwDelta[u][v]}`);
+        }
+    }
+    fwLog(`k=${fwNodes[k]}: ${updated.length?updated.join(', '):'keine Verbesserung'}`, updated.length?'highlight':'');
+    renderFW(updated);
+}
+
+function floydRun() { while (fwK < fwNodes.length) floydStep(); }
+
+function renderFW(updated) {
+    const n = fwNodes.length;
+    const updatedSet = new Set(updated.map(s => s.split('=')[0].replace('Δ(','').replace(')','').replace(',','-')));
+
+    let html = '<table class="fw-matrix"><tr><th></th>';
+    fwNodes.forEach(n => html += `<th>${n}</th>`);
+    html += '</tr>';
+    fwNodes.forEach((u,i) => {
+        html += `<tr><th>${u}</th>`;
+        fwNodes.forEach((v,j) => {
+            const key = `${u}-${v}`;
+            const cls = i===j ? 'diag' : (updatedSet.has(key) ? 'updated' : '');
+            const val = fwDelta[i][j] === Infinity ? '∞' : fwDelta[i][j];
+            html += `<td class="${cls}">${val}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</table>';
+    document.getElementById('floyd-matrix').innerHTML = html;
+
+    let piHtml = '<table class="fw-matrix"><tr><th></th>';
+    fwNodes.forEach(n => piHtml += `<th>${n}</th>`);
+    piHtml += '</tr>';
+    fwNodes.forEach((u,i) => {
+        piHtml += `<tr><th>${u}</th>`;
+        fwNodes.forEach((v,j) => {
+            const cls = i===j?'diag':'';
+            piHtml += `<td class="${cls}">${fwPi[i][j]||'—'}</td>`;
+        });
+        piHtml += '</tr>';
+    });
+    piHtml += '</table>';
+    document.getElementById('floyd-pi-matrix').innerHTML = piHtml;
+}
+
+function fwLog(msg, type) {
+    const d = document.getElementById('floyd-log');
+    const e = document.createElement('div');
+    e.className = 'log-entry ' + type;
+    e.textContent = msg;
+    d.prepend(e);
+}
+</script>
+</body>
+</html>
